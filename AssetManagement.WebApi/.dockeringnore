@@ -1,0 +1,90 @@
+# .NET build output
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# Visual Studio
+.vs/
+**/.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider
+.idea/
+**/.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/
+**/.vscode/
+
+# Test output and coverage
+**/TestResults/
+**/test-results/
+**/coverage/
+**/coverage-results/
+**/*.trx
+**/*.coverage
+**/*.coveragexml
+**/coverage.cobertura.xml
+
+# NuGet packages and artifacts
+**/*.nupkg
+**/*.snupkg
+packages/
+.nuget/
+
+# Logs and temporary files
+**/logs/
+**/Logs/
+**/*.log
+**/*.tmp
+**/*.temp
+**/*.cache
+
+# Operating system files
+**/.DS_Store
+**/Thumbs.db
+**/desktop.ini
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker development files
+docker-compose*.yml
+docker-compose*.yaml
+
+# Local and development configuration
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.*.local.json
+
+# Environment and secret files
+.env
+.env.*
+!.env.example
+
+# Certificates and private keys
+**/*.pfx
+**/*.p12
+**/*.pem
+**/*.key
+**/*.crt
+**/*.cer
+
+# Database files and backups
+**/*.mdf
+**/*.ldf
+**/*.bak
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Documentation not needed during build
+**/*.md
+**/docs/

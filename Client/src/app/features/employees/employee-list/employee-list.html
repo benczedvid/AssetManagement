@@ -1,0 +1,225 @@
+<main class="min-h-screen bg-slate-100">
+
+  <section class="min-w-full p-4">
+    <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="text-sm font-bold uppercase tracking-wide text-[#006AB2]">
+          Dolgozói törzs
+        </p>
+
+        <h1 class="mt-1 text-2xl font-bold text-[#002B51]">
+          Alkalmazottak
+        </h1>
+
+        <p class="mt-1 text-sm text-slate-600">
+          Az áruházakhoz tartozó alkalmazottak nyilvántartása.
+        </p>
+      </div>
+
+      <div class="inline-flex items-center gap-3 self-start rounded-xl
+               border border-slate-200 bg-white px-4 py-3
+               shadow-sm sm:self-auto">
+        <span class="text-sm font-medium text-slate-600">
+          Alkalmazottak száma:
+        </span>
+
+        <span class="inline-flex min-w-10 items-center justify-center
+                 rounded-lg bg-[#FFED00] px-3 py-1
+                 text-sm font-bold text-[#002B51]">
+          {{ employees().length }}
+        </span>
+      </div>
+    </div>
+
+    @if (isLoading()) {
+    <div class="flex min-h-64 items-center justify-center
+               rounded-2xl bg-white shadow-sm"
+         role="status">
+      <div class="text-center">
+        <div class="mx-auto h-10 w-10 animate-spin
+                   rounded-full border-4 border-slate-200
+                   border-t-[#006AB2]"
+             aria-hidden="true"></div>
+
+        <p class="mt-4 text-sm font-medium text-slate-600">
+          Alkalmazottak betöltése...
+        </p>
+      </div>
+    </div>
+    } @else if (errorMessage()) {
+    <div class="rounded-2xl border border-red-200
+               bg-red-50 p-6 text-red-800"
+         role="alert">
+      <h2 class="font-bold">
+        Betöltési hiba
+      </h2>
+
+      <p class="mt-1 text-sm">
+        {{ errorMessage() }}
+      </p>
+
+      <button type="button"
+              class="mt-4 rounded-lg bg-red-700
+                 px-4 py-2 text-sm font-semibold
+                 text-white transition-colors
+                 hover:bg-red-800
+                 focus:outline-none focus:ring-4
+                 focus:ring-red-700/30"
+              (click)="loadEmployees()">
+        Újrapróbálás
+      </button>
+    </div>
+    } @else if (employees().length === 0) {
+    <div class="rounded-2xl border border-slate-200
+               bg-white p-10 text-center shadow-sm">
+      <div class="mx-auto flex h-14 w-14 items-center
+                 justify-center rounded-xl
+                 bg-[#FFED00] text-xl font-bold text-[#002B51]"
+           aria-hidden="true">
+        D
+      </div>
+
+      <h2 class="mt-5 text-xl font-bold text-[#002B51]">
+        Nincsenek alkalmazottak
+      </h2>
+
+      <p class="mt-2 text-sm text-slate-600">
+        Jelenleg nincs megjeleníthető alkalmazott az adatbázisban.
+      </p>
+    </div>
+    } @else {
+    <div class="overflow-hidden rounded-2xl
+               border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200">
+
+          <thead class="bg-[#002B51]">
+            <tr>
+              <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Törzsszám
+              </th>
+
+              <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Név
+              </th>
+              <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Kezdés ideje
+              </th>
+
+              <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Kilépés ideje
+              </th>
+
+              <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Áruház
+              </th>
+                            <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Szervezeti egység
+              </th>
+                            <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Pozíció kódja
+              </th>
+                            <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Munkakör
+              </th>
+                            <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Telefonszám
+              </th>
+                            <th scope="col"
+                  class="px-5 py-4 text-left text-xs
+                         font-bold uppercase tracking-wide
+                         text-white">
+                Email
+              </th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-200">
+            @for (
+            employee of employees();
+            track employee.employeeNumber
+            ) {
+            <tr class="transition-colors hover:bg-slate-50">
+
+              <td class="px-5 py-4">
+                <span class="inline-flex rounded-lg
+                             bg-blue-50 px-3 py-1
+                             font-mono text-xs font-semibold
+                             text-[#006AB2]">
+                  {{ employee.employeeNumber }}
+                </span>
+              </td>
+
+              <td class="px-5 py-4 text-sm text-slate-800">
+                {{ employee.fullName }}
+              </td>
+
+              <td class="px-5 py-4 text-sm text-slate-700">
+                {{ employee.employmentStartDate | date: 'yyyy.MM.dd.' }}
+              </td>
+
+              <td class="px-5 py-4 text-sm text-slate-700">
+                {{ employee.employmentEndDate ? (employee.employmentEndDate | date: 'yyyy.MM.dd.') : '-' }}
+              </td>
+
+              <td class="px-5 py-4">
+                <span class="inline-flex rounded-lg
+                             bg-amber-50 px-3 py-1
+                             text-xs font-semibold text-amber-800">
+                  {{ employee.storeNumber }}
+                </span>
+              </td>
+              <td class="px-5 py-4 text-sm text-slate-700">
+                {{ employee.organizationType }}
+              </td>
+              <td class="px-5 py-4 text-sm text-slate-700">
+                {{ employee.positionCode }}
+              </td>
+              <td class="px-5 py-4 text-sm text-slate-700">
+                {{ employee.position }}
+              </td>
+              <td class="px-5 py-4 text-sm text-slate-700">
+                {{ employee.phoneNumber }}
+              </td>
+              <td class="px-5 py-4 text-sm text-slate-700">
+                {{ employee.email }}
+              </td>
+
+            </tr>
+            }
+          </tbody>
+
+        </table>
+      </div>
+    </div>
+    }
+
+  </section>
+</main>

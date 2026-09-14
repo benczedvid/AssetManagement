@@ -1,0 +1,838 @@
+<main class="min-h-screen min-w-0 overflow-x-hidden bg-slate-100">
+  <section class="w-full min-w-0 max-w-full p-4">
+    <!-- Page header -->
+    <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-[#002B51]">
+          Eszközök
+        </h1>
+        <p class="mt-1 text-sm text-slate-600">
+          A nyilvántartott eszközök listája.
+        </p>
+      </div>
+
+      @if (canManageAssets()) {
+      <a routerLink="/assets/new"
+         class="inline-flex items-center
+                 justify-center gap-2
+                 rounded-lg bg-[#FFED00]
+                 px-4 py-2.5
+                 text-sm font-bold text-[#002B51]
+                 transition-all
+                 hover:-translate-y-0.5
+                 hover:bg-[#f5e300]
+                 focus-visible:outline-none
+                 focus-visible:ring-2
+                 focus-visible:ring-[#FFED00]
+                 focus-visible:ring-offset-2">
+        <span class="text-lg leading-none" aria-hidden="true">
+          +
+        </span>
+        <span>
+          Új eszköz
+        </span>
+
+      </a>
+
+      }
+
+    </header>
+
+    <!-- Loading state -->
+    @if (isLoading()) {
+
+    <div class="flex min-h-64 items-center
+               justify-center rounded-2xl
+               border border-slate-200
+               bg-white shadow-sm"
+         role="status"
+         aria-live="polite">
+
+      <div class="text-center">
+
+        <div class="mx-auto h-10 w-10
+                   animate-spin rounded-full
+                   border-4 border-slate-200
+                   border-t-[#006AB2]"
+             aria-hidden="true">
+        </div>
+
+        <p class="mt-4 text-sm font-medium
+                   text-slate-600">
+          Eszközök betöltése...
+        </p>
+
+      </div>
+
+    </div>
+
+    } @else if (errorMessage()) {
+
+    <!-- Error state -->
+    <div class="rounded-2xl border
+               border-red-200 bg-red-50
+               p-6 text-red-800 shadow-sm"
+         role="alert"
+         aria-live="assertive">
+
+      <div class="flex items-start gap-4">
+
+        <div class="flex h-11 w-11 shrink-0
+                   items-center justify-center
+                   rounded-xl bg-red-100
+                   text-xl font-bold text-red-700"
+             aria-hidden="true">
+          !
+        </div>
+
+        <div>
+
+          <h2 class="font-bold">
+            Betöltési hiba
+          </h2>
+
+          <p class="mt-1 text-sm">
+            {{ errorMessage() }}
+          </p>
+
+          <button type="button"
+                  class="mt-4 rounded-lg
+                     bg-red-700 px-4 py-2
+                     text-sm font-semibold text-white
+                     transition-colors
+                     hover:bg-red-800
+                     focus-visible:outline-none
+                     focus-visible:ring-2
+                     focus-visible:ring-red-700
+                     focus-visible:ring-offset-2"
+                  (click)="loadAssets()">
+            Újrapróbálás
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    } @else if (
+    dataSource.data.length === 0
+    ) {
+
+    <!-- Empty state -->
+    <div class="rounded-2xl border
+               border-slate-200 bg-white
+               p-10 text-center shadow-sm">
+
+      <div class="mx-auto flex h-14 w-14
+                 items-center justify-center
+                 rounded-xl bg-[#FFED00]
+                 font-bold text-[#002B51]"
+           aria-hidden="true">
+        P
+      </div>
+
+      <h2 class="mt-5 text-xl font-bold
+                 text-[#002B51]">
+        Nincsenek eszközök
+      </h2>
+
+      <p class="mt-2 text-sm text-slate-600">
+        Jelenleg nincs megjeleníthető eszköz.
+      </p>
+
+      @if (canManageAssets()) {
+
+      <a routerLink="/assets/new"
+         class="mt-6 inline-flex
+                   items-center justify-center
+                   gap-2 rounded-lg
+                   bg-[#006AB2] px-4 py-2.5
+                   text-sm font-semibold text-white
+                   transition-colors
+                   hover:bg-[#00558f]
+                   focus-visible:outline-none
+                   focus-visible:ring-2
+                   focus-visible:ring-[#006AB2]
+                   focus-visible:ring-offset-2">
+
+        <span aria-hidden="true">
+          +
+        </span>
+
+        <span>
+          Első eszköz felvétele
+        </span>
+
+      </a>
+
+      }
+
+    </div>
+
+    } @else {
+
+    <!-- Material table container -->
+    <section class="w-full min-w-0 max-w-full
+               overflow-hidden rounded-2xl
+               border border-slate-200
+               bg-white shadow-sm"
+             aria-labelledby="asset-list-heading">
+
+      <!-- Summary, search and column selector -->
+      <div class="flex flex-col gap-4
+                 border-b border-slate-200
+                 px-5 py-4
+                 lg:flex-row lg:items-center
+                 lg:justify-between">
+
+        <div>
+
+          <h2 id="asset-list-heading"
+              class="font-bold text-[#002B51]">
+            Eszközlista
+          </h2>
+
+          <p class="mt-1 text-sm text-slate-500">
+
+            @if (hasActiveFilter()) {
+
+            {{ filteredAssetCount }}
+            találat a
+            {{ dataSource.data.length }}
+            eszközből.
+
+            } @else {
+
+            {{ dataSource.data.length }}
+            eszköz található.
+
+            }
+
+          </p>
+
+        </div>
+
+        <div class="flex w-full flex-col gap-3
+                   sm:flex-row sm:items-center
+                   lg:w-auto">
+
+          <!-- Search -->
+          <div class="relative w-full lg:w-96">
+
+            <label for="asset-search"
+                   class="sr-only">
+              Keresés az eszközök között
+            </label>
+
+            <div class="pointer-events-none absolute
+                       inset-y-0 left-0 flex
+                       items-center pl-3"
+                 aria-hidden="true">
+
+              <svg class="h-5 w-5 text-slate-400"
+                   viewBox="0 0 24 24"
+                   fill="none"
+                   stroke="currentColor"
+                   stroke-width="2">
+
+                <circle cx="11"
+                        cy="11"
+                        r="7">
+                </circle>
+
+                <path stroke-linecap="round"
+                      d="m20 20-3.5-3.5">
+                </path>
+
+              </svg>
+
+            </div>
+
+            <input #searchInput
+                   id="asset-search"
+                   type="search"
+                   autocomplete="off"
+                   placeholder="Keresés..."
+                   class="block w-full rounded-lg
+                       border border-slate-300
+                       bg-white py-2.5 pl-10 pr-11
+                       text-sm text-slate-900
+                       shadow-sm outline-none
+                       transition-colors
+                       placeholder:text-slate-400
+                       hover:border-slate-400
+                       focus:border-[#006AB2]
+                       focus:ring-4
+                       focus:ring-[#006AB2]/15"
+                   [value]="searchTerm()"
+                   (input)="applyFilter($event)">
+
+            @if (hasActiveFilter()) {
+
+            <button type="button"
+                    class="absolute inset-y-0 right-0
+                         flex w-10 items-center
+                         justify-center rounded-r-lg
+                         text-slate-500
+                         transition-colors
+                         hover:bg-slate-100
+                         hover:text-slate-800
+                         focus-visible:outline-none
+                         focus-visible:ring-2
+                         focus-visible:ring-inset
+                         focus-visible:ring-[#006AB2]"
+                    aria-label="Keresés törlése"
+                    (click)="clearFilter()">
+
+              <svg class="h-4 w-4"
+                   viewBox="0 0 24 24"
+                   fill="none"
+                   stroke="currentColor"
+                   stroke-width="2"
+                   aria-hidden="true">
+
+                <path stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M6 6l12 12M18 6L6 18">
+                </path>
+
+              </svg>
+
+            </button>
+
+            }
+
+          </div>
+
+          <!-- Column selector trigger -->
+          <button type="button"
+                  mat-stroked-button
+                  [matMenuTriggerFor]="columnMenu"
+                  class="h-[42px] shrink-0"
+                  aria-label="Megjelenített oszlopok kiválasztása">
+
+            <span class="inline-flex items-center gap-2">
+
+              <svg class="h-4 w-4"
+                   viewBox="0 0 24 24"
+                   fill="none"
+                   stroke="currentColor"
+                   stroke-width="2"
+                   aria-hidden="true">
+
+                <rect x="3"
+                      y="4"
+                      width="18"
+                      height="16"
+                      rx="2">
+                </rect>
+
+                <path d="M9 4v16">
+                </path>
+
+                <path d="M15 4v16">
+                </path>
+
+              </svg>
+
+              <span>
+                Oszlopok
+              </span>
+
+              <span class="rounded-full bg-slate-100
+                         px-2 py-0.5 text-xs
+                         text-slate-600">
+                {{ displayedColumns().length }}
+              </span>
+
+            </span>
+
+          </button>
+
+        </div>
+
+      </div>
+
+      <!-- Column selector menu -->
+      <mat-menu #columnMenu="matMenu"
+                class="asset-column-menu">
+
+        <div class="min-w-64 px-2 py-2"
+             (click)="$event.stopPropagation()"
+             (keydown)="$event.stopPropagation()">
+
+          <div class="border-b border-slate-200
+                     px-2 pb-2">
+
+            <p class="text-sm font-bold
+                       text-[#002B51]">
+              Megjelenített oszlopok
+            </p>
+
+            <p class="mt-1 text-xs
+                       text-slate-500">
+              Válaszd ki a táblázatban
+              látható adatokat.
+            </p>
+
+          </div>
+
+          <div class="flex flex-col py-2">
+
+            @for (
+            column of availableColumns;
+            track column.id
+            ) {
+
+            <mat-checkbox class="asset-column-checkbox"
+                          [checked]="
+                    isColumnVisible(column.id)
+                  "
+                          [disabled]="column.required"
+                          (change)="toggleColumn(column)">
+
+              {{ column.label }}
+
+              @if (column.required) {
+
+              <span class="ml-1 text-xs
+                             text-slate-400">
+                kötelező
+              </span>
+
+              }
+
+            </mat-checkbox>
+
+            }
+
+          </div>
+
+          <div class="border-t border-slate-200
+                     px-2 pt-2">
+
+            <button type="button"
+                    mat-button
+                    class="w-full"
+                    [disabled]="
+                  isDefaultColumnSelection()
+                "
+                    (click)="resetVisibleColumns()">
+              Alapértelmezett nézet
+            </button>
+
+          </div>
+
+        </div>
+
+      </mat-menu>
+
+      <!-- Horizontally scrollable table -->
+      <div class="w-full min-w-0 max-w-full
+                 overflow-x-auto
+                 overscroll-x-contain"
+           tabindex="0"
+           aria-label="Az eszköztábla vízszintesen görgethető">
+
+        <mat-table [dataSource]="dataSource"
+                   matSort
+                   matSortActive="assetName"
+                   matSortDirection="asc"
+                   [matSortDisableClear]="true"
+                   class="asset-table">
+
+          <!-- Asset name -->
+          <ng-container matColumnDef="assetName">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés név szerint">
+              Név
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       font-semibold text-[#002B51]">
+
+              {{ asset.assetName }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- Asset status -->
+          <ng-container matColumnDef="assetStatus">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés állapot szerint">
+              Állapot
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap">
+
+              <span class="inline-flex rounded-lg
+                         bg-blue-50 px-3 py-1
+                         text-xs font-semibold
+                         text-[#006AB2]">
+
+                {{
+                    getAssetStatusLabel(
+                      asset.assetStatus
+                    )
+                }}
+
+              </span>
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- Asset type -->
+          <ng-container matColumnDef="assetType">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés típus szerint">
+              Típus
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       text-slate-700">
+
+              {{
+                  getAssetTypeLabel(
+                    asset.assetType
+                  )
+              }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- Manufacturer -->
+          <ng-container matColumnDef="manufacturer">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés gyártó szerint">
+              Gyártó
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       text-slate-700">
+
+              {{
+                  asset.manufacturer
+                    || 'Nincs megadva'
+              }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- Model -->
+          <ng-container matColumnDef="model">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés modell szerint">
+              Modell
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       text-slate-700">
+
+              {{
+                  asset.model
+                    || 'Nincs megadva'
+              }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- Serial number -->
+          <ng-container matColumnDef="serialNumber">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés sorozatszám szerint">
+              Sorozatszám
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       font-mono text-slate-700">
+
+              {{
+                  asset.serialNumber
+                    || 'Nincs megadva'
+              }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- MAC address -->
+          <ng-container matColumnDef="macAddress">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés MAC-cím szerint">
+              MAC-cím
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       font-mono text-slate-700">
+
+              {{
+                  asset.macAddress
+                    || 'Nincs megadva'
+              }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- Wi-Fi MAC address -->
+          <ng-container matColumnDef="wifiMacAddress">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés Wi-Fi MAC-cím szerint">
+              Wi-Fi MAC-cím
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       font-mono text-slate-700">
+
+              {{
+                  asset.wifiMacAddress
+                    || 'Nincs megadva'
+              }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- IMEI -->
+          <ng-container matColumnDef="imei">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés IMEI szerint">
+              IMEI
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       font-mono text-slate-700">
+
+              {{
+                  asset.imei
+                    || 'Nincs megadva'
+              }}
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- Assigned employee -->
+          <ng-container matColumnDef="assignedEmployeeName">
+
+            <mat-header-cell *matHeaderCellDef
+                             mat-sort-header
+                             sortActionDescription="Rendezés használó szerint">
+              Jelenleg használja
+            </mat-header-cell>
+
+            <mat-cell *matCellDef="let asset"
+                      class="whitespace-nowrap
+                       text-slate-700">
+
+              @if (asset.assignedEmployeeName) {
+
+              <span class="inline-flex rounded-lg
+                           bg-emerald-50 px-3 py-1
+                           text-xs font-semibold
+                           text-emerald-700">
+
+                {{ asset.assignedEmployeeName }}
+
+              </span>
+
+              } @else {
+
+              <span class="text-slate-400">
+                Nincs hozzárendelve
+              </span>
+
+              }
+
+            </mat-cell>
+
+          </ng-container>
+
+          <!-- CreatedAtUtc -->
+          <ng-container matColumnDef="createdAtUtc">
+            <mat-header-cell *matHeaderCellDef mat-sort-header sortActionDescription="Rendezés létrehozás dátuma szerint">
+              Létrehozva
+            </mat-header-cell>
+            <mat-cell *matCellDef="let asset" class="whitespace-nowrap font-mono text-slate-700">
+              {{ asset.createdAtUtc + 'Z'| date:'yyyy.MM.dd. HH:mm' }}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Vendor -->
+          <ng-container matColumnDef="assignedVendorName">
+            <mat-header-cell *matHeaderCellDef mat-sort-header sortActionDescription="Rendezés létrehozás dátuma szerint">
+              Beszállító
+            </mat-header-cell>
+            <mat-cell *matCellDef="let asset" class="whitespace-nowrap font-mono text-slate-700">
+              {{ asset.assignedVendorName }}
+              
+            </mat-cell>
+          </ng-container>
+
+                    <!-- RfidTagId -->
+          <ng-container matColumnDef="rfidTagId">
+            <mat-header-cell *matHeaderCellDef mat-sort-header sortActionDescription="Rendezés létrehozás dátuma szerint">
+              RFID címke ID
+            </mat-header-cell>
+            <mat-cell *matCellDef="let asset" class="whitespace-nowrap font-mono text-slate-700">
+              {{ asset.rfidTagId }}
+              
+            </mat-cell>
+          </ng-container>
+          <!-- Header row -->
+          <mat-header-row *matHeaderRowDef="
+                displayedColumns()
+              ">
+          </mat-header-row>
+
+          <!-- Data rows -->
+          <mat-row *matRowDef="
+                let asset;
+                columns: displayedColumns()
+              "
+                   class="asset-table-row
+                     cursor-pointer"
+                   tabindex="0"
+                   [attr.aria-label]="
+                asset.assetName +
+                ' eszköz részleteinek megnyitása'
+              "
+                   (click)="
+                openAssetDetails(
+                  asset.assetId
+                )
+              
+                   
+              ">
+          </mat-row>
+
+        </mat-table>
+
+      </div>
+
+      <!-- No filtered results -->
+      @if (
+      hasActiveFilter() &&
+      filteredAssetCount === 0
+      ) {
+
+      <div class="border-t border-slate-200
+                   bg-white px-6 py-12
+                   text-center"
+           role="status"
+           aria-live="polite">
+
+        <div class="mx-auto flex h-12 w-12
+                     items-center justify-center
+                     rounded-xl bg-slate-100
+                     text-slate-500"
+             aria-hidden="true">
+
+          <svg class="h-6 w-6"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2">
+
+            <circle cx="11"
+                    cy="11"
+                    r="7">
+            </circle>
+
+            <path stroke-linecap="round"
+                  d="m20 20-3.5-3.5">
+            </path>
+
+          </svg>
+
+        </div>
+
+        <h3 class="mt-4 font-bold
+                     text-[#002B51]">
+          Nincs találat
+        </h3>
+
+        <p class="mt-1 text-sm
+                     text-slate-500">
+          A megadott keresési feltételnek
+          egyetlen eszköz sem felel meg.
+        </p>
+
+        <button type="button"
+                class="mt-5 inline-flex
+                     items-center justify-center
+                     rounded-lg bg-[#006AB2]
+                     px-4 py-2.5
+                     text-sm font-semibold text-white
+                     transition-colors
+                     hover:bg-[#00558f]
+                     focus-visible:outline-none
+                     focus-visible:ring-2
+                     focus-visible:ring-[#006AB2]
+                     focus-visible:ring-offset-2"
+                (click)="clearFilter()">
+          Keresés törlése
+        </button>
+
+      </div>
+
+      }
+
+      <!-- Paginator -->
+      @if (filteredAssetCount > 0) {
+
+      <mat-paginator class="asset-paginator
+                   border-t border-slate-200
+                   bg-white"
+                     [pageSize]="25"
+                     [pageSizeOptions]="[
+              25,
+              50,
+              100
+            ]"
+                     [showFirstLastButtons]="true"
+                     aria-label="Eszközlista lapozása">
+      </mat-paginator>
+
+      }
+
+    </section>
+
+    }
+
+  </section>
+
+</main>

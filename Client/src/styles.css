@@ -1,0 +1,191 @@
+/* You can add global styles to this file, and also import other style files */
+@import "tailwindcss";
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+
+/* Shared snackbar appearance */
+.mat-mdc-snack-bar-container.asset-management-snackbar {
+  --mdc-snackbar-container-shape: 0.75rem;
+  margin-top: 1rem;
+}
+  .mat-mdc-snack-bar-container.asset-management-snackbar
+  .mdc-snackbar__surface {
+    min-width: 22rem;
+    border: 1px solid;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.16), 0 4px 6px -4px rgb(15 23 42 / 0.12) !important;
+  }
+
+.mat-mdc-snack-bar-container.asset-management-snackbar
+.mdc-snackbar__surface {
+  min-width: 22rem;
+  border: 1px solid;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.16), 0 4px 6px -4px rgb(15 23 42 / 0.12) !important;
+}
+
+.mat-mdc-snack-bar-container.asset-management-snackbar
+.mdc-snackbar__label {
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* Success */
+/* Success snackbar */
+.mat-mdc-snack-bar-container.asset-management-success {
+  --mdc-snackbar-container-color: rgb(15, 252, 3) !important;
+  --mat-snack-bar-container-color: rgb(15, 252, 3) !important;
+  --mat-mdc-snack-bar-container-color: rgb(15, 252, 3) !important;
+  --mdc-snackbar-supporting-text-color: rgb(6, 78, 59) !important;
+  --mat-snack-bar-supporting-text-color: rgb(6, 78, 59) !important;
+  --mat-snack-bar-button-color: rgb(4, 120, 87) !important;
+  --mat-mdc-snack-bar-button-color: rgb(4, 120, 87) !important;
+}
+
+  .mat-mdc-snack-bar-container.asset-management-success
+  .mdc-snackbar__surface {
+    background: rgb(15, 252, 3) !important;
+    background-color: rgb(15, 252, 3) !important;
+    border-color: rgb(110, 231, 183) !important;
+    color: rgb(6, 78, 59) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-success
+  .mdc-snackbar__label {
+    color: rgb(6, 78, 59) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-success
+  .mat-mdc-snack-bar-action {
+    color: rgb(4, 120, 87) !important;
+  }
+/* Error */
+.mat-mdc-snack-bar-container.asset-management-error {
+  --mdc-snackbar-container-color: rgb(252, 3, 15) !important;
+  --mat-snack-bar-container-color: rgb(252, 3, 15) !important;
+  --mat-mdc-snack-bar-container-color: rgb(252, 3, 15) !important;
+  --mdc-snackbar-supporting-text-color: rgb(5, 5, 5) !important;
+  --mat-snack-bar-supporting-text-color: rgb(5, 5, 5) !important;
+  --mat-snack-bar-button-color: rgb(5, 5, 5) !important;
+  --mat-mdc-snack-bar-button-color: rgb(5, 5, 5) !important;
+}
+
+  .mat-mdc-snack-bar-container.asset-management-error
+  .mdc-snackbar__surface {
+    background: rgb(252, 3, 15) !important;
+    background-color: rgb(252, 3, 15) !important;
+    border-color: rgb(252, 165, 165) !important;
+    color: rgb(5, 5, 5) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-error
+  .mdc-snackbar__label {
+    color: rgb(5, 5, 5) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-error
+  .mat-mdc-snack-bar-action {
+    color: rgb(5, 5, 5) !important;
+  }
+
+/* Warning */
+.mat-mdc-snack-bar-container.asset-management-warning {
+  --mdc-snackbar-container-color: rgb(245, 158, 11) !important;
+  --mat-snack-bar-container-color: rgb(245, 158, 11) !important;
+  --mat-mdc-snack-bar-container-color: rgb(245, 158, 11) !important;
+  --mdc-snackbar-supporting-text-color: rgb(120, 53, 15) !important;
+  --mat-snack-bar-supporting-text-color: rgb(120, 53, 15) !important;
+  --mat-snack-bar-button-color: rgb(180, 83, 9) !important;
+  --mat-mdc-snack-bar-button-color: rgb(180, 83, 9) !important;
+}
+
+  .mat-mdc-snack-bar-container.asset-management-warning
+  .mdc-snackbar__surface {
+    background: rgb(245, 158, 11) !important;
+    background-color: rgb(245, 158, 11) !important;
+    border-color: rgb(252, 211, 77) !important;
+    color: rgb(120, 53, 15) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-warning
+  .mdc-snackbar__label {
+    color: rgb(120, 53, 15) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-warning
+  .mat-mdc-snack-bar-action {
+    color: rgb(180, 83, 9) !important;
+  }
+
+/* Information */
+.mat-mdc-snack-bar-container.asset-management-information {
+  --mdc-snackbar-container-color: rgb(37, 99, 235) !important;
+  --mat-snack-bar-container-color: rgb(37, 99, 235) !important;
+  --mat-mdc-snack-bar-container-color: rgb(37, 99, 235) !important;
+  --mdc-snackbar-supporting-text-color: rgb(0, 43, 81) !important;
+  --mat-snack-bar-supporting-text-color: rgb(0, 43, 81) !important;
+  --mat-snack-bar-button-color: rgb(0, 106, 178) !important;
+  --mat-mdc-snack-bar-button-color: rgb(0, 106, 178) !important;
+}
+
+  .mat-mdc-snack-bar-container.asset-management-information
+  .mdc-snackbar__surface {
+    background: rgb(37, 99, 235) !important;
+    background-color: rgb(37, 99, 235) !important;
+    border-color: rgb(147, 197, 253) !important;
+    color: rgb(0, 43, 81) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-information
+  .mdc-snackbar__label {
+    color: rgb(0, 43, 81) !important;
+  }
+
+  .mat-mdc-snack-bar-container.asset-management-information
+  .mat-mdc-snack-bar-action {
+    color: rgb(0, 106, 178) !important;
+  }
+
+/* Shared action button */
+.mat-mdc-snack-bar-container.asset-management-snackbar
+.mat-mdc-snack-bar-action {
+  font-weight: 500;
+}
+/* Asset table sort header text */
+.asset-table .mat-sort-header-container,
+.asset-table .mat-sort-header-content {
+  color: rgb(255 255 255) !important;
+}
+
+/* Angular Material sort arrow */
+.asset-table .mat-sort-header-arrow {
+  color: rgb(255 237 0) !important;
+  opacity: 1 !important;
+}
+
+/* Newer Angular Material arrow internals */
+.asset-table .mat-sort-header-stem,
+.asset-table .mat-sort-header-pointer-left,
+.asset-table .mat-sort-header-pointer-right,
+.asset-table .mat-sort-header-pointer-middle {
+  color: rgb(255 237 0) !important;
+  background-color: rgb(255 237 0) !important;
+}
+
+/* Ensure inactive arrows are also visible on hover */
+.asset-table
+.mat-sort-header-container:hover
+.mat-sort-header-arrow {
+  color: rgb(255 237 0) !important;
+  opacity: 1 !important;
+}
+
+/* Keyboard focus */
+.asset-table
+.mat-sort-header-container:focus-visible {
+  outline: 2px solid rgb(255 237 0);
+  outline-offset: 3px;
+  border-radius: 0.25rem;
+}

@@ -1,0 +1,134 @@
+<div class="mx-auto max-w-xl px-4 py-8">
+  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 px-6 py-5">
+      <h1 class="text-xl font-semibold text-slate-900">
+        PDT eszközmozgás
+      </h1>
+
+      <p class="mt-1 text-sm text-slate-500">
+        Add meg a dolgozói számot, majd olvasd be az eszköz gyári számát.
+      </p>
+    </div>
+
+    <form class="space-y-6 p-6"
+          [formGroup]="form"
+          (ngSubmit)="save()">
+
+      <div>
+        <label for="employeeNumber"
+               class="mb-2 block text-sm font-medium text-slate-700">
+          Dolgozói szám
+        </label>
+
+        <input #employeeNumberInput
+               id="employeeNumber"
+               type="text"
+               formControlName="employeeNumber"
+               maxlength="10"
+               autocomplete="off"
+               autofocus
+               placeholder="Dolgozói szám beolvasása vagy megadása"
+               class="w-full rounded-lg border border-slate-300 px-4 py-3
+                 text-slate-900 outline-none transition
+                 placeholder:text-slate-400
+                 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+               [class.border-red-500]="
+            form.controls.employeeNumber.touched &&
+            form.controls.employeeNumber.invalid
+          "
+               (keydown.enter)="
+            $event.preventDefault();
+            employeeNumberCompleted()
+          " />
+
+        @if (
+        form.controls.employeeNumber.touched &&
+        form.controls.employeeNumber.hasError('required')
+        ) {
+        <p class="mt-2 text-sm text-red-600">
+          A dolgozói szám megadása kötelező.
+        </p>
+        }
+
+        @if (
+        form.controls.employeeNumber.touched &&
+        form.controls.employeeNumber.hasError('maxlength')
+        ) {
+        <p class="mt-2 text-sm text-red-600">
+          A dolgozói szám legfeljebb 10 karakter lehet.
+        </p>
+        }
+      </div>
+
+      <div>
+        <label for="rfidTagId"
+               class="mb-2 block text-sm font-medium text-slate-700">
+          RFID címke azonosító
+        </label>
+
+        <input #rfidTagIdInput
+               id="rfidTagId"
+               type="text"
+               formControlName="rfidTagId"
+               autocomplete="off"
+               placeholder="RFID címke azonosító beolvasása vagy megadása"
+               class="w-full rounded-lg border border-slate-300 px-4 py-3
+                 text-slate-900 outline-none transition
+                 placeholder:text-slate-400
+                 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+               [class.border-red-500]="
+            form.controls.rfidTagId.touched &&
+            form.controls.rfidTagId.invalid
+          "
+               (keydown.enter)="
+            $event.preventDefault();
+            rfidTagIdCompleted()
+          " />
+
+        @if (
+        form.controls.rfidTagId.touched &&
+        form.controls.rfidTagId.hasError('required')
+        ) {
+        <p class="mt-2 text-sm text-red-600">
+          A RFID címke azonosító megadása kötelező.
+        </p>
+        }
+      </div>
+
+      @if (saveError()) {
+      <div role="alert"
+           class="rounded-lg border border-red-200 bg-red-50 px-4 py-3
+                 text-sm text-red-700">
+        {{ saveError() }}
+      </div>
+      }
+
+      @if (isSaving()) {
+      <div role="status"
+           class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3
+                 text-sm text-blue-700">
+        Az eszközmozgás rögzítése folyamatban...
+      </div>
+      }
+
+      <!-- IDEIGLENES BEKÜLDÉS GOMB KEZDETE -->
+      <!-- Automatikus scanneres működés bevezetése után ez a teljes rész törölhető. -->
+      <button type="submit"
+              [disabled]="form.invalid || isSaving()"
+              class="flex w-full items-center justify-center rounded-lg
+               bg-blue-600 px-4 py-3 font-medium text-white
+               transition hover:bg-blue-700
+               focus:outline-none focus:ring-2 focus:ring-blue-500
+               focus:ring-offset-2
+               disabled:cursor-not-allowed disabled:opacity-50">
+        @if (isSaving()) {
+        Rögzítés...
+        } @else {
+        Eszközmozgás rögzítése
+        }
+      </button>
+      <!-- IDEIGLENES BEKÜLDÉS GOMB VÉGE -->
+
+    </form>
+  </div>
+</div>

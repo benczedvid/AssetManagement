@@ -1,0 +1,71 @@
+name: assetmanagement
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: AssetManagement.WebApi/Dockerfile
+
+    image: assetmanagement-api:${APP_VERSION:-latest}
+    container_name: assetmanagement-api
+
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+
+      ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION_STRING}
+
+      AzureAd__Instance: ${AZUREAD_INSTANCE}
+      AzureAd__TenantId: ${AZUREAD_TENANT_ID}
+      AzureAd__ClientId: ${AZUREAD_API_CLIENT_ID}
+      AzureAd__Audience: ${AZUREAD_API_AUDIENCE}
+
+    expose:
+      - "8080"
+
+    networks:
+      - application-network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+
+    image: assetmanagement-frontend:${APP_VERSION:-latest}
+    container_name: assetmanagement-frontend
+
+    restart: unless-stopped
+
+    depends_on:
+      - api
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    networks:
+      - application-network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  application-network:
+    name: assetmanagement-network
+    driver: bridge

@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Application\Devices\**" />
+    <Compile Remove="Infrastructure\Devices\**" />
+    <Compile Remove="Infrastructure\Stores\**" />
+    <Compile Remove="WebApi\Devices\**" />
+    <Compile Remove="WebApi\Stores\**" />
+    <EmbeddedResource Remove="Application\Devices\**" />
+    <EmbeddedResource Remove="Infrastructure\Devices\**" />
+    <EmbeddedResource Remove="Infrastructure\Stores\**" />
+    <EmbeddedResource Remove="WebApi\Devices\**" />
+    <EmbeddedResource Remove="WebApi\Stores\**" />
+    <None Remove="Application\Devices\**" />
+    <None Remove="Infrastructure\Devices\**" />
+    <None Remove="Infrastructure\Stores\**" />
+    <None Remove="WebApi\Devices\**" />
+    <None Remove="WebApi\Stores\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="MSTest" Version="4.3.3" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.3" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.3" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DeathStar.Application\AssetManagement.Application.csproj" />
+    <ProjectReference Include="..\DeathStar.Domain\AssetManagement.Domain.csproj" />
+    <ProjectReference Include="..\DeathStar.WebApi\AssetManagement.WebApi.csproj" />
+    <ProjectReference Include="..\DeathStar.Infrastructure\AssetManagement.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

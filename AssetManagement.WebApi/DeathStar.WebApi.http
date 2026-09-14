@@ -1,0 +1,6 @@
+@DeathStar.WebApi_HostAddress = http://localhost:5252
+
+GET {{DeathStar.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

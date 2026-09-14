@@ -1,0 +1,173 @@
+<nav class="bg-blue-900 text-white shadow-lg"
+     aria-label="Fő navigáció">
+
+  <div class="mx-auto flex min-h-16 items-center
+           justify-between gap-6 px-6">
+
+    <!-- Brand and navigation -->
+    <div class="flex min-w-0 items-center gap-8">
+
+      <a routerLink="/dashboard"
+         class="shrink-0 text-xl font-bold text-yellow-400
+               transition-colors hover:text-yellow-300
+               focus:outline-none focus:ring-2
+               focus:ring-yellow-400 focus:ring-offset-2
+               focus:ring-offset-blue-900">
+        Praktiker
+      </a>
+
+      <div class="flex items-center gap-6">
+
+        <a routerLink="/dashboard"
+           routerLinkActive="text-yellow-400 font-semibold"
+           [routerLinkActiveOptions]="{
+            exact: true
+          }"
+           class="text-sm font-medium text-white
+                 transition-colors hover:text-yellow-300
+                 focus:outline-none">
+          Dashboard
+        </a>
+
+        @if (canViewAssets()) {
+        <a routerLink="/assets"
+           routerLinkActive="text-yellow-400 font-semibold"
+           class="text-sm font-medium text-white
+                   transition-colors hover:text-yellow-300
+                   focus:outline-none">
+          Eszközök
+        </a>
+        }
+
+        @if (canManageStores()) {
+        <a routerLink="/stores"
+           routerLinkActive="text-yellow-400 font-semibold"
+           class="text-sm font-medium text-white
+                   transition-colors hover:text-yellow-300
+                   focus:outline-none">
+          Áruházak
+        </a>
+        }
+
+        @if (canViewEmployees()) {
+        <a routerLink="/employees"
+           routerLinkActive="text-yellow-400 font-semibold"
+           class="text-sm font-medium text-white
+                   transition-colors hover:text-yellow-300
+                   focus:outline-none">
+          Alkalmazottak
+        </a>
+      }
+
+        @if (canManageAssets()){
+        <a routerLink="/vendors"
+           routerLinkActive="text-yellow-400 font-semibold"
+           [routerLinkActiveOptions]="{
+            exact: true
+          }"
+           class="text-sm font-medium text-white
+                 transition-colors hover:text-yellow-300
+                 focus:outline-none">
+          Partnerek
+        </a>
+      }
+
+      </div>
+
+    </div>
+
+    <!-- Current user and logout -->
+    <div class="flex shrink-0 items-center gap-4">
+
+      @if (
+      currentUserApi.currentUser();
+      as currentUser
+      ) {
+      <div class="hidden max-w-64 text-right sm:block">
+
+        <p class="truncate text-sm font-semibold text-white"
+           [title]="currentUser.displayName">
+          {{ currentUser.displayName }}
+        </p>
+
+        <p class="mt-0.5 truncate text-xs text-blue-200"
+           [title]="currentUser.role">
+          {{ getRoleLabel(currentUser.role) }}
+        </p>
+
+      </div>
+      }
+
+      <button type="button"
+              class="inline-flex items-center justify-center gap-2
+               rounded-lg border border-white/30
+               px-4 py-2 text-sm font-semibold text-white
+               transition-colors
+               hover:border-yellow-400
+               hover:bg-yellow-400
+               hover:text-blue-950
+               focus:outline-none focus:ring-4
+               focus:ring-yellow-400/30
+               disabled:cursor-not-allowed
+               disabled:opacity-60"
+              [disabled]="isLogoutInProgress()"
+              (click)="logout()">
+
+        @if (isLogoutInProgress()) {
+
+        <svg class="h-4 w-4 animate-spin"
+             viewBox="0 0 24 24"
+             fill="none"
+             aria-hidden="true">
+
+          <circle class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4">
+          </circle>
+
+          <path class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 0 1 8-8v4a4 4
+                 0 0 0-4 4H4Z">
+          </path>
+
+        </svg>
+
+        <span>Kijelentkezés...</span>
+
+        } @else {
+
+        <svg class="h-4 w-4"
+             viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             aria-hidden="true">
+
+          <path stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10 17l5-5-5-5M15 12H3">
+          </path>
+
+          <path stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M14 3h4a3 3 0 0 1 3 3v12
+                 a3 3 0 0 1-3 3h-4">
+          </path>
+
+        </svg>
+
+        <span>Kijelentkezés</span>
+
+        }
+
+      </button>
+
+    </div>
+
+  </div>
+
+</nav>

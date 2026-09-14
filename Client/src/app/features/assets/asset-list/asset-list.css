@@ -1,0 +1,174 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ==========================================================
+   Material table
+   ========================================================== */
+
+.asset-table {
+  width: 100%;
+  min-width: 1320px;
+  background-color: rgb(255 255 255);
+}
+
+  /* ==========================================================
+   Header row
+   ========================================================== */
+
+  .asset-table .mat-mdc-header-row {
+    min-width: 1320px;
+    background-color: rgb(0 43 81);
+  }
+
+  .asset-table .mat-mdc-header-cell {
+    box-sizing: border-box;
+    min-width: 8rem;
+    padding: 1rem 1.25rem;
+    color: rgb(255 255 255);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.25rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom-color: rgb(226 232 240);
+  }
+
+  /* ==========================================================
+   Data rows and cells
+   ========================================================== */
+
+  .asset-table .mat-mdc-row {
+    min-width: 1320px;
+  }
+
+  .asset-table .mat-mdc-cell {
+    box-sizing: border-box;
+    min-width: 8rem;
+    padding: 1rem 1.25rem;
+    overflow: hidden;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    text-overflow: ellipsis;
+    border-bottom-color: rgb(226 232 240);
+  }
+
+  /* ==========================================================
+   Column widths
+   ========================================================== */
+
+  .asset-table .mat-column-assetName {
+    flex: 0 0 9rem;
+    width: 9rem;
+    min-width: 9rem;
+  }
+
+  .asset-table .mat-column-assetStatus {
+    flex: 0 0 12rem;
+    width: 12rem;
+    min-width: 12rem;
+  }
+
+  .asset-table .mat-column-assetType {
+    flex: 0 0 9rem;
+    width: 9rem;
+    min-width: 9rem;
+  }
+
+  .asset-table .mat-column-manufacturer {
+    flex: 0 0 8rem;
+    width: 8rem;
+    min-width: 8rem;
+  }
+
+  .asset-table .mat-column-model {
+    flex: 0 0 8rem;
+    width: 8rem;
+    min-width: 8rem;
+  }
+
+  .asset-table .mat-column-serialNumber {
+    flex: 0 0 12rem;
+    width: 12rem;
+    min-width: 12rem;
+  }
+
+  .asset-table .mat-column-macAddress {
+    flex: 0 0 12rem;
+    width: 12rem;
+    min-width: 12rem;
+  }
+
+  .asset-table .mat-column-wifiMacAddress {
+    flex: 0 0 12rem;
+    width: 12rem;
+    min-width: 12rem;
+  }
+
+  .asset-table .mat-column-imei {
+    flex: 0 0 11rem;
+    width: 11rem;
+    min-width: 11rem;
+  }
+
+  .asset-table .mat-column-assignedEmployeeName {
+    flex: 0 0 14rem;
+    width: 14rem;
+    min-width: 14rem;
+  }
+
+/* ==========================================================
+   Row interactions
+   ========================================================== */
+
+.asset-table-row {
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+  .asset-table-row:hover {
+    background-color: rgb(248 250 252);
+  }
+
+  .asset-table-row:focus-visible {
+    outline: 2px solid rgb(0 106 178);
+    outline-offset: -2px;
+    background-color: rgb(239 246 255);
+  }
+
+  .asset-table-row:last-child .mat-mdc-cell {
+    border-bottom: 0;
+  }
+
+/* ==========================================================
+   Sort header
+   ========================================================== */
+
+.asset-table .mat-sort-header-container {
+  color: rgb(255 255 255);
+}
+
+.asset-table .mat-sort-header-content {
+  color: rgb(255 255 255);
+}
+
+.asset-table .mat-sort-header-arrow {
+  color: rgb(255 237 0);
+  opacity: 1;
+}
+
+/* ==========================================================
+   Paginator
+   ========================================================== */
+
+.asset-paginator {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  color: rgb(51 65 85);
+  background-color: rgb(255 255 255);
+}

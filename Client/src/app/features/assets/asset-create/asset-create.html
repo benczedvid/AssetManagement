@@ -1,0 +1,357 @@
+<main class="min-h-screen bg-slate-100">
+
+
+  <section class="mx-auto max-w-5xl px-4 py-8
+           sm:px-6 lg:px-8">
+    <form class="space-y-6"
+          [formGroup]="form"
+          (ngSubmit)="save()">
+      @if (saveError()) {
+      <div role="alert"
+           class="rounded-xl border border-red-200
+                 bg-red-50 px-5 py-4 text-sm
+                 font-medium text-red-800">
+        {{ saveError() }}
+      </div>
+      }
+
+      <div class="rounded-2xl border border-slate-200
+               bg-white p-6 shadow-sm sm:p-8">
+        <div class="border-b border-slate-200 pb-5">
+          <h2 class="text-xl font-bold text-[#002B51]">
+            Alapadatok
+          </h2>
+
+          <p class="mt-1 text-sm text-slate-600">
+            Az eszköz azonosításához szükséges adatok.
+          </p>
+        </div>
+
+        <div class="mt-6 grid gap-5
+                 md:grid-cols-2">
+          <label class="block md:col-span-2">
+            <span class="text-sm font-semibold text-slate-700">
+              Eszköz neve *
+            </span>
+
+            <input type="text"
+                   formControlName="assetName"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     outline-none focus:border-[#006AB2]
+                     focus:ring-4 focus:ring-[#006AB2]/15" />
+
+            @if (
+            form.controls.assetName.touched
+            && form.controls.assetName.invalid
+            ) {
+            <span class="mt-1 block text-xs text-red-700">
+              Az eszköz neve kötelező.
+            </span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Eszköztípus *
+            </span>
+
+            <select formControlName="assetType"
+                    class="mt-2 w-full rounded-lg border
+                     border-slate-300 bg-white px-3 py-2.5
+                     outline-none focus:border-[#006AB2]
+                     focus:ring-4 focus:ring-[#006AB2]/15">
+              <option [ngValue]=null>
+                Válassz eszköztípust
+              </option>
+
+              @for (
+              type of assetTypes;
+              track type
+              ) {
+              <option [value]="type">
+                {{ typeLabels[type] }}
+              </option>
+              }
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Állapot *
+            </span>
+
+            <select formControlName="assetStatus"
+                    class="mt-2 w-full rounded-lg border
+                     border-slate-300 bg-white px-3 py-2.5
+                     outline-none focus:border-[#006AB2]
+                     focus:ring-4 focus:ring-[#006AB2]/15">
+              @for (
+              status of assetStatuses;
+              track status
+              ) {
+              <option [value]="status">
+                {{ statusLabels[status] }}
+              </option>
+              }
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Gyártó *
+            </span>
+
+            <input type="text"
+                   formControlName="manufacturer"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     outline-none focus:border-[#006AB2]
+                     focus:ring-4 focus:ring-[#006AB2]/15" />
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Modell *
+            </span>
+
+            <input type="text"
+                   formControlName="model"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     outline-none focus:border-[#006AB2]
+                     focus:ring-4 focus:ring-[#006AB2]/15" />
+          </label>
+
+          <label class="block md:col-span-2">
+            <span class="text-sm font-semibold text-slate-700">
+              Sorozatszám *
+            </span>
+
+            <input type="text"
+                   formControlName="serialNumber"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     font-mono outline-none
+                     focus:border-[#006AB2]
+                     focus:ring-4 focus:ring-[#006AB2]/15" />
+          </label>
+          <label class="block md:col-span-2">
+            <span class="text-sm font-semibold text-slate-700">
+              RFID címke azonosítója
+            </span>
+
+            <input type="text"
+                   formControlName="rfidTagId"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     font-mono outline-none
+                     focus:border-[#006AB2]
+                     focus:ring-4 focus:ring-[#006AB2]/15" />
+          </label>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-slate-200
+               bg-white p-6 shadow-sm sm:p-8">
+        <h2 class="text-xl font-bold text-[#002B51]">
+          Hálózati és rendszeradatok
+        </h2>
+
+        <div class="mt-6 grid gap-5
+                 md:grid-cols-2">
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              MAC-cím
+            </span>
+
+            <input type="text"
+                   formControlName="macAddress"
+                   maxlength="17"
+                   autocomplete="off"
+                   spellcheck="false"
+                   placeholder="AA:BB:CC:DD:EE:FF"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     font-mono outline-none
+                     focus:border-[#006AB2]"
+                   (input)="formatMacAddress('macAddress', $event)" />
+            @if (form.controls.macAddress.touched && form.controls.macAddress.invalid) {
+            <span class="mt-1 block text-xs text-red-700">
+              A MAC-cím formátuma nem megfelelő.
+              Példa: AA:BB:CC:DD:EE:FF
+            </span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Wi-Fi MAC-cím
+            </span>
+
+            <input type="text"
+                   formControlName="wifiMacAddress"
+                   maxlength="17"
+                   autocomplete="off"
+                   spellcheck="false"
+                   placeholder="AA:BB:CC:DD:EE:FF"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     font-mono outline-none
+                     focus:border-[#006AB2]"
+                   (input)="formatMacAddress('wifiMacAddress', $event)" />
+            @if (form.controls.wifiMacAddress.touched && form.controls.wifiMacAddress.invalid) {
+            <span class="mt-1 block text-xs text-red-700">
+              A MAC-cím formátuma nem megfelelő.
+              Példa: AA:BB:CC:DD:EE:FF
+            </span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              IMEI
+            </span>
+
+            <input type="text"
+                   formControlName="imei"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     font-mono outline-none
+                     focus:border-[#006AB2]" />
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Operációs rendszer
+            </span>
+
+            <input type="text"
+                   formControlName="operatingSystem"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     outline-none focus:border-[#006AB2]" />
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Operációs rendszer verziója
+            </span>
+
+            <input type="text"
+                   formControlName="operatingSystemVersion"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     outline-none focus:border-[#006AB2]" />
+          </label>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-slate-200
+               bg-white p-6 shadow-sm sm:p-8">
+        <h2 class="text-xl font-bold text-[#002B51]">
+          Hozzárendelés
+        </h2>
+
+        <div class="mt-6 grid gap-5
+                 md:grid-cols-2">
+          <label class="block md:col-span-2">
+            <span class="text-sm font-semibold text-slate-700">
+              Áruház *
+            </span>
+
+            <select formControlName="assignedStoreId"
+                    class="mt-2 w-full rounded-lg border
+           border-slate-300 bg-white px-3 py-2.5
+           outline-none focus:border-[#006AB2]
+           focus:ring-4 focus:ring-[#006AB2]/15
+           disabled:cursor-not-allowed
+           disabled:bg-slate-100
+           disabled:text-slate-500">
+              <option value="">
+                @if (storesLoading()) {
+                Áruházak betöltése...
+                } @else {
+                Válassz áruházat
+                }
+              </option>
+
+              @for (
+              store of stores();
+              track store.id
+              ) {
+              <option [value]="store.id">
+                {{ store.storeNumber }} –
+                {{ store.name }}
+              </option>
+              }
+            </select>
+
+            @if (storesError()) {
+            <div class="mt-2 rounded-lg border border-red-200
+             bg-red-50 px-3 py-2">
+              <p class="text-xs font-medium text-red-700">
+                {{ storesError() }}
+              </p>
+
+              <button type="button"
+                      class="mt-2 text-xs font-bold text-red-800
+               underline"
+                      (click)="loadStores()">
+                Újrapróbálás
+              </button>
+            </div>
+            } @else if (
+            form.controls.assignedStoreId.touched
+            && form.controls.assignedStoreId.invalid
+            ) {
+            <span class="mt-1 block text-xs text-red-700">
+              Válassz áruházat.
+            </span>
+            }
+          </label>
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">
+              Felhasználó azonosító
+            </span>
+
+            <input type="text"
+                   formControlName="assignedUserId"
+                   placeholder="Opcionális GUID"
+                   class="mt-2 w-full rounded-lg border
+                     border-slate-300 px-3 py-2.5
+                     font-mono text-sm outline-none
+                     focus:border-[#006AB2]" />
+          </label>
+        </div>
+      </div>
+
+      <div class="flex flex-col-reverse gap-3
+               sm:flex-row sm:justify-end">
+        <a routerLink="/assets"
+           class="inline-flex items-center justify-center
+                 rounded-lg border border-slate-300
+                 px-5 py-3 text-sm font-semibold
+                 text-slate-700 hover:bg-slate-50">
+          Mégse
+        </a>
+
+        <button type="submit"
+                class="inline-flex items-center justify-center
+                 gap-2 rounded-lg bg-[#FFED00]
+                 px-5 py-3 text-sm font-bold
+                 text-[#002B51]
+                 hover:bg-[#f5e300]
+                 disabled:cursor-not-allowed
+                 disabled:opacity-60"
+                [disabled]="isSaving()">
+          @if (isSaving()) {
+          <span>Mentés...</span>
+          } @else {
+          <span>Eszköz mentése</span>
+          }
+        </button>
+      </div>
+    </form>
+  </section>
+</main>
