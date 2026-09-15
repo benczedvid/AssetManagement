@@ -28,7 +28,7 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(configuration);
 
         var connectionString =
-            configuration.GetConnectionString("DeathStarDatabase")
+            configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException(
                 "The database connection string is missing.");
 
