@@ -26,14 +26,14 @@ namespace AssetManagement.Infrastructure.Persistence.Repositories
                 .AsNoTracking()
                 .Where(movement => movement.AssetId == assetId)
                 .OrderBy(movement => movement.CreatedAtUtc)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
         }
 
         public async Task<AssetMovement?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _appDbContext.AssetMovement
                 .AsNoTracking()
-                .FirstOrDefaultAsync(movement => movement.Id == id);
+                .FirstOrDefaultAsync(movement => movement.Id == id, cancellationToken);
         }
 
         public async Task<IReadOnlyList<AssetMovement>>GetRecentByAssetIdAsync(Guid assetId, DateTime fromUtc, CancellationToken cancellationToken)

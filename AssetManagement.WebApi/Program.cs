@@ -93,11 +93,9 @@ app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseHttpsRedirection();
+    app.UseCors(AngularCorsPolicy);
 }
-
-app.UseHttpsRedirection();
-
-app.UseCors(AngularCorsPolicy);
 
 app.UseAuthentication();
 app.UseAuthorization();

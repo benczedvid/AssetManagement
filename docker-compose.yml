@@ -27,6 +27,9 @@ services:
       MicrosoftGraphEmail__ClientId: ${MICROSOFTGRAPHEMAIL_CLIENTID}
       MicrosoftGraphEmail__CLientSecret: ${MICROSOFTGRAPHEMAIL_CLIENTSECRET}
       MicrosoftGraphEmail__SendUserPrincipalName: ${MICROSOFTGRAPHEMAIL_SENDERUSERPRINCIPALNAME}
+      
+      AllowedHosts: ${ALLOWED_HOSTS}
+    
     expose:
       - "${API_CONTAINER_PORT:-8080}"
 
@@ -54,6 +57,14 @@ services:
 
     depends_on:
       - api
+
+    environment:
+      FRONTEND_CLIENT_ID: ${FRONTEND_CLIENT_ID}
+      FRONTEND_TENANT_ID: ${FRONTEND_TENANT_ID}
+      FRONTEND_REDIRECT_URI: ${FRONTEND_REDIRECT_URI}
+      FRONTEND_POST_LOGOUT_REDIRECT_URI: ${FRONTEND_POST_LOGOUT_REDIRECT_URI}
+      FRONTEND_API_BASE_URL: ${FRONTEND_API_BASE_URL:-/api}
+      FRONTEND_API_SCOPE: ${FRONTEND_API_SCOPE}
 
     ports:
       - "${FRONTEND_HOST_IP:-127.0.0.1}:${FRONTEND_HOST_PORT:-8080}:${FRONTEND_CONTAINER_PORT:-80}"

@@ -10,7 +10,7 @@ import { CreateAssetMovementResponse } from './models/create-asset-movement-resp
 })
 export class AssetMovementApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = `${environment.apiBaseUrl}/asset-movement`
+  private readonly baseUrl = `${environment.api.baseUrl}/asset-movement`
 
   create(request: CreateAssetMovementRequest): Observable<CreateAssetMovementResponse>{
     return this.http.post<CreateAssetMovementResponse>(`${this.baseUrl}`, request)
