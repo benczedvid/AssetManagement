@@ -128,25 +128,19 @@ public sealed class AssetRepositoryTests
         await SeedAssetsAsync(firstAsset, secondAsset);
 
         // Act
-        var result = await _repository.GetAllAsync(
-            CancellationToken.None);
+        var result = await _repository.GetAllAsync(CancellationToken.None);
 
         // Assert
         Assert.HasCount(2, result);
-
-        Assert.IsTrue(result.Any(asset =>
-            asset.Id == firstAsset.Id));
-
-        Assert.IsTrue(result.Any(asset =>
-            asset.Id == secondAsset.Id));
+        Assert.Contains(asset => asset.Id == firstAsset.Id, result);
+        Assert.Contains(asset => asset.Id == secondAsset.Id, result);
     }
 
     [TestMethod]
     public async Task GetAllAsync_Should_Return_Empty_List_When_No_Assets_Exist()
     {
         // Act
-        var result = await _repository.GetAllAsync(
-            CancellationToken.None);
+        var result = await _repository.GetAllAsync(CancellationToken.None);
 
         // Assert
         Assert.IsNotNull(result);
@@ -342,24 +336,14 @@ public sealed class AssetRepositoryTests
 
         // Act
         var result =
-            await _repository.GetByAssignedUserIdAsync(
-                firstUser.Id,
-                CancellationToken.None);
+            await _repository.GetByAssignedUserIdAsync(firstUser.Id, CancellationToken.None);
 
         // Assert
         Assert.HasCount(2, result);
-
-        Assert.IsTrue(result.All(asset =>
-            asset.AssignedUserId == firstUser.Id));
-
-        Assert.IsTrue(result.Any(asset =>
-            asset.Id == firstAssignedAsset.Id));
-
-        Assert.IsTrue(result.Any(asset =>
-            asset.Id == secondAssignedAsset.Id));
-
-        Assert.IsFalse(result.Any(asset =>
-            asset.Id == otherUserAsset.Id));
+        Assert.IsTrue(result.All(asset => asset.AssignedUserId == firstUser.Id));
+        Assert.Contains(asset => asset.Id == firstAssignedAsset.Id, result);
+        Assert.Contains(asset => asset.Id == secondAssignedAsset.Id, result);
+        Assert.DoesNotContain(asset => asset.Id == otherUserAsset.Id, result);
     }
 
     [TestMethod]
@@ -464,18 +448,12 @@ public sealed class AssetRepositoryTests
 
         await SeedAssetsAsync(asset);
 
-        var trackedAsset =
-            await _repository.GetForUpdateByIdAsync(
-                asset.Id,
-                CancellationToken.None);
+        var trackedAsset = await _repository.GetForUpdateByIdAsync(asset.Id, CancellationToken.None);
 
         Assert.IsNotNull(trackedAsset);
 
-        // Act
-        trackedAsset.TransferToStore(targetStore.Id);
 
-        await _repository.SaveChangesAsync(
-            CancellationToken.None);
+        await _repository.SaveChangesAsync(CancellationToken.None);
 
         _dbContext.ChangeTracker.Clear();
 

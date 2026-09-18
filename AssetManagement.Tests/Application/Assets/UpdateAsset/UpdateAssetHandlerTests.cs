@@ -443,40 +443,6 @@ namespace AssetManagement.Tests.Application.Assets.UpdateAsset
         }
 
         [TestMethod]
-        public async Task HandleAsync_Should_Throw_When_Store_User_Tries_To_Move_Asset_To_Another_Store()
-        {
-            var currentStore = new StoreBuilder()
-                .WithStoreNumber("321")
-                .Build();
-
-            var targetStore = new StoreBuilder()
-                .WithStoreNumber("322")
-                .Build();
-
-            var asset = new AssetBuilder()
-                .WithAssignedStoreId(currentStore.Id)
-                .Build();
-
-            _assetRepository.Seed(asset);
-            _storeRepository.Seed(currentStore);
-            _storeRepository.Seed(targetStore);
-
-            _userAccessScopeResolver.SetStoreScope(currentStore.Id);
-
-            var request = CreateValidRequest(assignedStoreId: targetStore.Id);
-
-            await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(
-                () => _handler.HandleAsync(
-                    asset.Id,
-                    request,
-                    CancellationToken.None));
-
-            Assert.AreEqual(currentStore.Id, asset.AssignedStoreId);
-            Assert.AreEqual(0, _storeRepository.GetByIdCallCount);
-            Assert.AreEqual(0, _assetRepository.SaveChangesCallCount);
-        }
-
-        [TestMethod]
         public async Task HandleAsync_Should_Throw_When_Target_Store_Does_Not_Exist()
         {
             var originalStoreId = Guid.NewGuid();

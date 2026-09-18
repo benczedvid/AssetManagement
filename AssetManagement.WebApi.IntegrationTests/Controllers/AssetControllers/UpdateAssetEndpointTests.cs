@@ -19,14 +19,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
     [TestClass]
     public sealed class UpdateAssetEndpointTests
     {
-        private DeathStarWebApplicationFactory? _applicationFactory = null!;
+        private AssetManagementWebApplicationFactory? _applicationFactory = null!;
         private HttpClient? _httpClient = null!;
         private JsonSerializerOptions _jsonOptions = null!;
 
         [TestInitialize]
         public void Initialize()
         {
-            _applicationFactory = new DeathStarWebApplicationFactory();
+            _applicationFactory = new AssetManagementWebApplicationFactory();
             _httpClient = _applicationFactory.CreateClient();
             _jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
             _jsonOptions.Converters.Add(new JsonStringEnumConverter());
@@ -61,7 +61,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 operatingSystem: "Windows",
                 operatingSystemVersion: "24H2",
                 assignedStoreId: store.Id,
-                assignedUserId: user.Id,
+                assignedUserId: user.Id
                 );
             await SeedAssetAsync(asset);
 
@@ -77,7 +77,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 OperatingSystem: "Windows",
                 OperatingSystemVersion: "24H2",
                 AssignedStoreId: store.Id,
-                AssignedUserId: user.Id);
+                AssignedUserId: user.Id,
+                AssignedVendorId: asset.AssignedVendorId,
+                RfIdTagId: asset.RfidTagId);
             var response = await _httpClient!.PutAsJsonAsync($"/api/assets/{asset.Id}", updateAsset, CancellationToken.None);
             var responseBody = await response.Content.ReadFromJsonAsync<UpdateAssetResponse>(_jsonOptions, CancellationToken.None);
 
@@ -123,7 +125,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 OperatingSystem: "Windows",
                 OperatingSystemVersion: "24H2",
                 AssignedStoreId: store.Id,
-                AssignedUserId: user.Id);
+                AssignedUserId: user.Id,
+                AssignedVendorId: Guid.NewGuid(),
+                RfIdTagId: "123456");
 
             var response = await _httpClient!.PutAsJsonAsync($"/api/assets/{invalidId}", updateAsset, CancellationToken.None);
             Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
@@ -199,7 +203,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 OperatingSystem: "Windows",
                 OperatingSystemVersion: "24H2",
                 AssignedStoreId: store.Id,
-                AssignedUserId: user.Id);
+                AssignedUserId: user.Id,
+                AssignedVendorId: asset.AssignedVendorId,
+                RfIdTagId: asset.RfidTagId);
 
             using var response = await _httpClient!.PutAsJsonAsync($"/api/assets/{asset.Id}", updateAsset, CancellationToken.None);
 

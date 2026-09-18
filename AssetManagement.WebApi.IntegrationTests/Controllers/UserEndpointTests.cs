@@ -15,14 +15,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers;
 [DoNotParallelize]
 public sealed class UsersEndpointTests
 {
-    private DeathStarWebApplicationFactory? _factory = null!;
+    private AssetManagementWebApplicationFactory? _factory = null!;
 
     private HttpClient? _client = null!;
 
     [TestInitialize]
     public void Initialize()
     {
-        _factory = new DeathStarWebApplicationFactory();
+        _factory = new AssetManagementWebApplicationFactory();
 
         _client = _factory.CreateClient();
     }

@@ -14,10 +14,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace AssetManagement.WebApi.IntegrationTests.Infrastructure
 {
-    /// <summary>
-    /// Creates a test host for DeathStar Web API integration tests.
-    /// </summary>
-    internal sealed class DeathStarWebApplicationFactory : WebApplicationFactory<Program>
+    internal sealed class AssetManagementWebApplicationFactory : WebApplicationFactory<Program>
     {
         private SqliteConnection _connection = null!;
         private readonly string _databaseName = $"DeathStarIntegrationTests_{Guid.NewGuid():N}";

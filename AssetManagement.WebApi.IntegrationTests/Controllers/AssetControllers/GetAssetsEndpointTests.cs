@@ -18,14 +18,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
     [TestClass]
     public sealed class GetAssetsEndpointTests
     {
-        private DeathStarWebApplicationFactory _applicationFactory = null!;
+        private AssetManagementWebApplicationFactory _applicationFactory = null!;
         private HttpClient _httpClient = null!;
         private JsonSerializerOptions _jsonOptions = null!;
 
         [TestInitialize]
         public void Initialize()
         {
-            _applicationFactory = new DeathStarWebApplicationFactory();
+            _applicationFactory = new AssetManagementWebApplicationFactory();
             _httpClient = _applicationFactory.CreateClient();
             _jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
             _jsonOptions.Converters.Add(new JsonStringEnumConverter());

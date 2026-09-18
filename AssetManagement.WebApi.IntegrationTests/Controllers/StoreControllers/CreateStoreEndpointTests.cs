@@ -1,4 +1,5 @@
-﻿using AssetManagement.Application.Stores.CreateStore;
+﻿using AssetManagement.Application.Common.Models;
+using AssetManagement.Application.Stores.CreateStore;
 using AssetManagement.Domain.Entities.ValueObjects.Address;
 using AssetManagement.Infrastructure.Persistence;
 using AssetManagement.WebApi.IntegrationTests.Authentication;
@@ -16,15 +17,18 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
     [TestClass]
     public sealed class CreateStoreEndpointTests
     {
-        private DeathStarWebApplicationFactory? _applicationFactory = null!;
-        private HttpClient? _httpClient = null!;
+        private const string Endpoint = "/api/stores";
+
+        private AssetManagementWebApplicationFactory? _applicationFactory;
+        private HttpClient? _httpClient;
         private JsonSerializerOptions _jsonOptions = null!;
 
         [TestInitialize]
         public void Initialize()
         {
-            _applicationFactory = new DeathStarWebApplicationFactory();
+            _applicationFactory = new AssetManagementWebApplicationFactory();
             _httpClient = _applicationFactory.CreateClient();
+
             _jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
             _jsonOptions.Converters.Add(new JsonStringEnumConverter());
         }
@@ -32,26 +36,18 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
         [TestCleanup]
         public void Cleanup()
         {
-            _applicationFactory?.Dispose();
             _httpClient?.Dispose();
+            _applicationFactory?.Dispose();
         }
+
         [TestMethod]
         public async Task CreateStore_Should_Return_201_Created()
         {
             AddAuthenticatedHeaders();
 
-            var request = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-                );
+            var request = CreateValidRequest();
 
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
 
             Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
 
@@ -62,12 +58,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
             Assert.AreNotEqual(Guid.Empty, responseBody.Id);
             Assert.AreEqual(request.StoreNumber, responseBody.StoreNumber);
             Assert.AreEqual(request.Name, responseBody.Name);
-            Assert.AreEqual(request.CountryCode, responseBody.CountryCode);
-            Assert.AreEqual(request.PostalCode, responseBody.PostalCode);
-            Assert.AreEqual(request.City, responseBody.City);
-            Assert.AreEqual(request.Address, responseBody.Address);
-            Assert.AreEqual(request.PublicSpace, responseBody.PublicSpace);
-            Assert.AreEqual(request.HouseNumber, responseBody.HouseNumber);
+
+            Assert.IsNotNull(responseBody.Address);
+            Assert.AreEqual(request.Address.CountryCode, responseBody.Address.CountryCode);
+            Assert.AreEqual(request.Address.PostalCode, responseBody.Address.PostalCode);
+            Assert.AreEqual(request.Address.City,responseBody.Address.City);
+            Assert.AreEqual(request.Address.Street,responseBody.Address.Street);
+            Assert.AreEqual(request.Address.PublicSpace, responseBody.Address.PublicSpace);
+            Assert.AreEqual(request.Address.HouseNumber, responseBody.Address.HouseNumber);
 
             await AssertStoreWasPersistedAsync(responseBody);
         }
@@ -75,17 +73,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
         [TestMethod]
         public async Task CreateStore_Should_Return_401_When_Request_Is_Not_Authenticated()
         {
-            var request = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-            );
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
+            var request = CreateValidRequest();
+
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
 
             Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
         }
@@ -94,210 +84,165 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
         public async Task CreateStore_Should_Return_409_When_Store_Number_Already_Exists()
         {
             AddAuthenticatedHeaders();
-            var firstRequest = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-                );
 
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", firstRequest, CancellationToken.None);
+            var firstRequest = CreateValidRequest();
 
-            var secondRequest = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-                );
-            using var secondResponse = await _httpClient!.PostAsJsonAsync("/api/stores", secondRequest, CancellationToken.None);
+            using var firstResponse = await _httpClient!.PostAsJsonAsync(Endpoint, firstRequest, _jsonOptions, CancellationToken.None);
 
-            var problemDetails = await secondResponse.Content.ReadFromJsonAsync<ProblemDetails>(CancellationToken.None);
+            Assert.AreEqual(HttpStatusCode.Created, firstResponse.StatusCode);
 
-            Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
+            var secondRequest = CreateValidRequest(name: "Budapest M3 Duplicate");
+
+            using var secondResponse = await _httpClient!.PostAsJsonAsync(Endpoint, secondRequest, _jsonOptions, CancellationToken.None);
+
             Assert.AreEqual(HttpStatusCode.Conflict, secondResponse.StatusCode);
+
+            var problemDetails = await secondResponse.Content.ReadFromJsonAsync<ProblemDetails>(_jsonOptions, CancellationToken.None);
 
             Assert.IsNotNull(problemDetails);
             Assert.AreEqual("A resource conflict occurred.", problemDetails.Title);
-            Assert.AreEqual("/api/stores", problemDetails.Instance);
-
+            Assert.AreEqual(Endpoint, problemDetails.Instance);
+            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
         }
 
         [TestMethod]
-        public async Task CreateStore_Should_Return_400_When_Store_Number_Is_Invalid()
+        public async Task CreateStore_Should_Return_400_When_Store_Number_Is_Empty()
         {
             AddAuthenticatedHeaders();
-            var request = new CreateStoreRequest(
-                StoreNumber: string.Empty,
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-                );
 
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(CancellationToken.None);
+            var request = CreateValidRequest(storeNumber: string.Empty);
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.IsNotNull(problemDetails);
-            Assert.AreEqual("The request is invalid.", problemDetails.Title);
-            Assert.AreEqual("/api/stores", problemDetails.Instance);
-            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
+            await AssertBadRequestAsync(response);
         }
+
         [TestMethod]
-        public async Task CreateStore_Should_Return_400_When_Name_Is_Missing()
+        public async Task CreateStore_Should_Return_400_When_Name_Is_Empty()
         {
             AddAuthenticatedHeaders();
-            var request = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: string.Empty,
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-                );
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(CancellationToken.None);
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.IsNotNull(problemDetails);
-            Assert.AreEqual("The request is invalid.", problemDetails.Title);
-            Assert.AreEqual("/api/stores", problemDetails.Instance);
-            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
+            var request = CreateValidRequest(name: string.Empty);
+
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
+
+            await AssertBadRequestAsync(response);
         }
 
         [TestMethod]
-        public async Task CreateStore_Should_Return_400_When_Store_City_Is_Empty(){
+        public async Task CreateStore_Should_Return_400_When_City_Is_Empty()
+        {
             AddAuthenticatedHeaders();
-            var request = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: string.Empty,
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-                );
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(CancellationToken.None);
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+            var request = CreateValidRequest(
+                address: CreateValidAddress(city: string.Empty));
 
-            Assert.IsNotNull(problemDetails);
-            Assert.AreEqual("The request is invalid.", problemDetails.Title);
-            Assert.AreEqual("/api/stores", problemDetails.Instance);
-            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
+
+            await AssertBadRequestAsync(response);
         }
+
         [TestMethod]
         public async Task CreateStore_Should_Return_400_When_Address_Is_Missing()
         {
             AddAuthenticatedHeaders();
-            var request = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: string.Empty,
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: "5"
-                );
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(CancellationToken.None);
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.IsNotNull(problemDetails);
-            Assert.AreEqual("The request is invalid.", problemDetails.Title);
-            Assert.AreEqual("/api/stores", problemDetails.Instance);
-            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
+            var request = CreateValidRequest(address: null!);
+
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
+
+            await AssertBadRequestAsync(response);
         }
+
         [TestMethod]
-        public async Task CreateStore_Should_Return_400_When_TypeOfRoad_Is_unknown()
+        public async Task CreateStore_Should_Return_400_When_Public_Space_Is_Unknown()
         {
             AddAuthenticatedHeaders();
-            var request = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.unknown,
-                HouseNumber: "5"
-                );
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(CancellationToken.None);
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.IsNotNull(problemDetails);
-            Assert.AreEqual("The request is invalid.", problemDetails.Title);
-            Assert.AreEqual("/api/stores", problemDetails.Instance);
-            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
+            var invalidPublicSpace = (PublicSpaces)999;
+
+            var request = CreateValidRequest(
+                address: CreateValidAddress(
+                    publicSpace: invalidPublicSpace));
+
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
+
+            await AssertBadRequestAsync(response);
         }
+
         [TestMethod]
-        public async Task CreateStore_Should_Return_400_When_House_Number_Is_Invalid()
+        public async Task CreateStore_Should_Return_400_When_House_Number_Is_Empty()
         {
             AddAuthenticatedHeaders();
-            var request = new CreateStoreRequest(
-                StoreNumber: "321",
-                Name: "Budapest M3",
-                CountryCode: CountryCodes.HUN,
-                PostalCode: "1152",
-                City: "Budapest",
-                Address: "Városkapu",
-                PublicSpace: PublicSpaces.utca,
-                HouseNumber: string.Empty
-                );
-            using var response = await _httpClient!.PostAsJsonAsync("/api/stores", request, CancellationToken.None);
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(CancellationToken.None);
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.IsNotNull(problemDetails);
-            Assert.AreEqual("The request is invalid.", problemDetails.Title);
-            Assert.AreEqual("/api/stores", problemDetails.Instance);
-            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
+            var request = CreateValidRequest(
+                address: CreateValidAddress(
+                    houseNumber: string.Empty));
+
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
+
+            await AssertBadRequestAsync(response);
         }
 
+        private static CreateStoreRequest CreateValidRequest(string storeNumber = "321", string name = "Budapest M3", AddressRequest? address = null)
+        {
+            return new CreateStoreRequest(StoreNumber: storeNumber, Name: name, Address: address ?? CreateValidAddress());
+        }
 
+        private static AddressRequest CreateValidAddress(
+            CountryCodes countryCode = CountryCodes.HUN,
+            string postalCode = "1152",
+            string city = "Budapest",
+            string street = "Városkapu",
+            PublicSpaces publicSpace = PublicSpaces.Street,
+            string houseNumber = "5")
+        {
+            return new AddressRequest(
+                CountryCode: countryCode,
+                PostalCode: postalCode,
+                City: city,
+                Street: street,
+                PublicSpace: publicSpace,
+                HouseNumber: houseNumber);
+        }
+
+        private async Task AssertBadRequestAsync(HttpResponseMessage response)
+        {
+            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+
+            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(_jsonOptions, CancellationToken.None);
+
+            Assert.IsNotNull(problemDetails);
+            Assert.AreEqual("The request is invalid.", problemDetails.Title);
+            Assert.AreEqual(Endpoint, problemDetails.Instance);
+            Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
+        }
 
         private void AddAuthenticatedHeaders()
         {
             _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.AuthenticationHeader, "true");
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, Guid.NewGuid().ToString());
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, Guid.NewGuid().ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, Guid.NewGuid().ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, Guid.NewGuid().ToString());
         }
+
         private async Task AssertStoreWasPersistedAsync(CreateStoreResponse response)
         {
             using var scope = _applicationFactory!.Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var persistedStore = await dbContext.Stores.AsNoTracking().SingleOrDefaultAsync(store => store.Id == response.Id, CancellationToken.None);
+            var persistedStore = await dbContext.Stores
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    store => store.Id == response.Id,
+                    CancellationToken.None);
 
             Assert.IsNotNull(persistedStore);
             Assert.AreEqual(response.StoreNumber, persistedStore.StoreNumber);
             Assert.AreEqual(response.Name, persistedStore.Name);
-            Assert.AreEqual(response.City, persistedStore.City);
-            Assert.AreEqual(response.Address, persistedStore.Address);
-            Assert.AreEqual(response.PublicSpace, persistedStore.PublicSpace);
-            Assert.AreEqual(response.HouseNumber, persistedStore.HouseNumber);
+            Assert.AreEqual(response.Address.CountryCode, persistedStore.Address.CountryCode);
+            Assert.AreEqual(response.Address.PostalCode, persistedStore.Address.PostalCode);
+            Assert.AreEqual(response.Address.City, persistedStore.Address.City);
+            Assert.AreEqual(response.Address.Street, persistedStore.Address.Street);
+            Assert.AreEqual(response.Address.PublicSpace, persistedStore.Address.PublicSpace);
+            Assert.AreEqual(response.Address.HouseNumber, persistedStore.Address.HouseNumber);
         }
     }
 }

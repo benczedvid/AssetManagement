@@ -68,8 +68,8 @@ namespace AssetManagement.Tests.Domain.Assets
             Assert.AreEqual(operatingSystem, asset.OperatingSystem);
             Assert.AreEqual(operatingSystemVersion, asset.OperatingSystemVersion);
 
-            Assert.IsTrue(asset.CreatedAtUtc >= beforeCreation);
-            Assert.IsTrue(asset.CreatedAtUtc <= afterCreation);
+            Assert.IsGreaterThanOrEqualTo(beforeCreation, asset.CreatedAtUtc);
+            Assert.IsLessThanOrEqualTo(afterCreation, asset.CreatedAtUtc);
 
             Assert.IsNull(asset.AssignedStore);
             Assert.IsNull(asset.AssignedUser);
@@ -599,7 +599,7 @@ namespace AssetManagement.Tests.Domain.Assets
                 manufacturer: "Lenovo",
                 model: "T14",
                 assignedStoreId: Guid.NewGuid(),
-                rfidTagId: null,
+                rfidTagId: null!,
                 assignedUserId: null,
                 macAddress: null,
                 wifiMacAddress: null,

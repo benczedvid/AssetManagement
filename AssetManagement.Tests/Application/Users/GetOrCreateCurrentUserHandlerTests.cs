@@ -364,7 +364,7 @@ namespace AssetManagement.Tests.Application.Users
             Assert.AreEqual("John Doe", existingUser.DisplayName);
             Assert.AreEqual("johndoe@example.com", existingUser.Mail);
             Assert.AreEqual("Accounting", existingUser.Department);
-            Assert.AreEqual("Accounting", existingUser.JobTitle);
+            Assert.AreEqual("Accountant", existingUser.JobTitle);
             Assert.AreEqual("+36 30 111 2222", existingUser.MobilePhone);
             Assert.AreEqual(ApplicationRole.ApplicationAdministrator, existingUser.Role);
             Assert.IsNull(existingUser.StoreId);
