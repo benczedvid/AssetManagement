@@ -40,10 +40,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DeathStar.Application\AssetManagement.Application.csproj" />
-    <ProjectReference Include="..\DeathStar.Domain\AssetManagement.Domain.csproj" />
-    <ProjectReference Include="..\DeathStar.WebApi\AssetManagement.WebApi.csproj" />
-    <ProjectReference Include="..\DeathStar.Infrastructure\AssetManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\AssetManagement.Application\AssetManagement.Application.csproj" />
+    <ProjectReference Include="..\AssetManagement.Domain\AssetManagement.Domain.csproj" />
+    <ProjectReference Include="..\AssetManagement.WebApi\AssetManagement.WebApi.csproj" />
+    <ProjectReference Include="..\AssetManagement.Infrastructure\AssetManagement.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

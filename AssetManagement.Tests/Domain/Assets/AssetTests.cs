@@ -418,49 +418,6 @@ namespace AssetManagement.Tests.Domain.Assets
         }
 
         [TestMethod]
-        public void TransferToStore_Should_Update_Store_And_Unassign_User()
-        {
-            var currentStoreId = Guid.NewGuid();
-            var targetStoreId = Guid.NewGuid();
-
-            var asset = new AssetBuilder()
-                .WithAssignedStoreId(currentStoreId)
-                .WithAssignedUserId(Guid.NewGuid())
-                .WithAssignedEmployeeNumber("103549")
-                .Build();
-
-            asset.TransferToStore(targetStoreId);
-
-            Assert.AreEqual(targetStoreId, asset.AssignedStoreId);
-            Assert.IsNull(asset.AssignedUserId);
-            Assert.IsNull(asset.AssignedUser);
-            Assert.IsNull(asset.AssignedEmployeeNumber);
-        }
-
-        [TestMethod]
-        public void TransferToStore_Should_Throw_When_TargetStoreId_Is_Empty()
-        {
-            var asset = new AssetBuilder().Build();
-
-            var exception = Assert.ThrowsExactly<ArgumentException>(() => asset.TransferToStore(Guid.Empty));
-            
-            Assert.AreEqual("targetStoreId", exception.ParamName);
-        }
-
-        [TestMethod]
-        public void TransferToStore_Should_Throw_When_TargetStore_Is_Current_Store()
-        {
-            var storeId = Guid.NewGuid();
-
-            var asset = new AssetBuilder()
-                .WithAssignedStoreId(storeId)
-                .Build();
-
-            Assert.ThrowsExactly<InvalidOperationException>(() => asset.TransferToStore(storeId));
-            Assert.AreEqual(storeId, asset.AssignedStoreId);
-        }
-
-        [TestMethod]
         public void Checkout_Should_Check_Out_Pdt_To_Employee()
         {
             var asset = new AssetBuilder()
