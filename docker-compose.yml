@@ -15,7 +15,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:${API_CONTAINER_PORT:-8080}
 
-      ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION_STRING}
+      ConnectionStrings__AssetManagementDatabase: ${DATABASE_CONNECTION_STRING}
 
       AzureAd__Instance: ${AZUREAD_INSTANCE}
       AzureAd__TenantId: ${AZUREAD_TENANT_ID}
