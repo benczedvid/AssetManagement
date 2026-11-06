@@ -1,0 +1,36 @@
+using AssetManagement.Domain.Entities.ServiceCases;
+
+namespace AssetManagement.Application.ServiceCases.GetServiceCases;
+
+/// <summary>
+/// Represents summary information about a service case returned in a service case list.
+/// </summary>
+/// <param name="Id">The unique identifier of the service case.</param>
+/// <param name="CaseNumber">The unique case number of the service case.</param>
+/// <param name="AssetId">The unique identifier of the asset associated with the service case.</param>
+/// <param name="Status">The current status of the service case.</param>
+/// <param name="IssueType">The type of issue reported for the service case.</param>
+/// <param name="OriginStoreId">
+/// The unique identifier of the store from which the service case originated, when applicable.
+/// </param>
+/// <param name="VendorId">
+/// The unique identifier of the external service provider assigned to the service case, when applicable.
+/// </param>
+/// <param name="IsActive">Indicates whether the service case is currently active.</param>
+/// <param name="CreatedAtUtc">The date and time when the service case was created, in UTC.</param>
+/// <param name="CreatedByUserName">The display name of the user who created the service case.</param>
+/// <param name="ClosedAtUtc">
+/// The date and time when the service case was closed, in UTC, when applicable.
+/// </param>
+public sealed record ServiceCaseListItemResponse(
+    Guid Id,
+    string CaseNumber,
+    Guid AssetId,
+    ServiceCaseStatus Status,
+    ServiceIssueType IssueType,
+    Guid? OriginStoreId,
+    Guid? VendorId,
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    string CreatedByUserName,
+    DateTime? ClosedAtUtc);

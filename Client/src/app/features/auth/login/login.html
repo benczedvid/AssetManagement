@@ -1,0 +1,133 @@
+<main class="relative flex min-h-screen items-center justify-center
+         overflow-hidden bg-[#002B51] px-4 py-12">
+  <!-- Dekoratív háttérelemek -->
+  <div class="pointer-events-none absolute -left-24 -top-24
+           h-80 w-80 rounded-full bg-[#006AB2]/35 blur-3xl"
+       aria-hidden="true"></div>
+
+  <div class="pointer-events-none absolute -bottom-32 -right-20
+           h-96 w-96 rounded-full bg-[#FFED00]/15 blur-3xl"
+       aria-hidden="true"></div>
+
+  <!-- Login tartalom -->
+  <section class="relative z-10 w-full max-w-md">
+    <!-- Felső Praktiker színcsík -->
+    <div class="flex h-2 overflow-hidden rounded-t-2xl"
+         aria-hidden="true">
+      <div class="w-3/4 bg-[#FFED00]"></div>
+      <div class="w-1/4 bg-[#006AB2]"></div>
+    </div>
+
+    <div class="overflow-hidden rounded-b-2xl bg-white
+             shadow-2xl shadow-black/30">
+      <div class="px-8 py-10 sm:px-10">
+        <!-- Jelképes P embléma -->
+        <div class="mx-auto flex h-20 w-20 items-center justify-center
+                 rounded-full bg-[#FFED00]
+                 shadow-lg shadow-[#002B51]/20"
+             aria-hidden="true">
+          <span class="text-5xl font-black tracking-tighter text-[#006AB2]">
+            P
+          </span>
+        </div>
+
+        <!-- Fejléc -->
+        <div class="mt-6 text-center">
+          <p class="text-sm font-bold uppercase tracking-[0.25em]
+                   text-[#006AB2]">
+            Praktiker
+          </p>
+
+          <h1 class="mt-2 text-3xl font-extrabold tracking-tight
+                   text-[#002B51]">
+            Praktiker Asset Management
+          </h1>
+
+          <p class="mt-2 text-sm text-slate-500">
+            Praktiker IT Asset Management
+          </p>
+        </div>
+
+        <!-- Elválasztó -->
+        <div class="my-8 flex items-center gap-4">
+          <div class="h-px flex-1 bg-slate-200"></div>
+
+          <div class="h-2.5 w-2.5 rotate-45 bg-[#FFED00]"
+               aria-hidden="true"></div>
+
+          <div class="h-px flex-1 bg-slate-200"></div>
+        </div>
+
+        <!-- Bejelentkezési szakasz -->
+        <div>
+          <h2 class="text-center text-lg font-bold text-[#002B51]">
+            Bejelentkezés
+          </h2>
+
+          <p class="mx-auto mt-2 max-w-sm text-center
+                   text-sm leading-6 text-slate-600">
+            A rendszer használatához jelentkezz be a vállalati
+            Microsoft-fiókoddal.
+          </p>
+
+          <button type="button"
+                  class="mt-7 flex w-full items-center justify-center gap-3
+                   rounded-lg bg-[#FFED00] px-4 py-3.5
+                   text-sm font-bold text-[#002B51]
+                   shadow-md shadow-[#002B51]/15
+                   transition-all duration-200
+                   hover:-translate-y-0.5 hover:bg-[#f5e300]
+                   hover:shadow-lg
+                   focus:outline-none focus:ring-4
+                   focus:ring-[#006AB2]/30"
+                  [disabled]="isLoginInProgress()"
+                  (click)="login()">
+            @if (isLoginInProgress()) {
+            <svg class="h-5 w-5 animate-spin"
+                 viewBox="0 0 24 24"
+                 fill="none"
+                 aria-hidden="true">
+              <circle class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"></circle>
+
+              <path class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+            </svg>
+
+            <span>Átirányítás...</span>
+            } @else {
+            <svg class="h-5 w-5"
+                 viewBox="0 0 24 24"
+                 aria-hidden="true">
+              <path fill="#f25022" d="M2 2h9.5v9.5H2z" />
+              <path fill="#7fba00" d="M12.5 2H22v9.5h-9.5z" />
+              <path fill="#00a4ef" d="M2 12.5h9.5V22H2z" />
+              <path fill="#ffb900" d="M12.5 12.5H22V22h-9.5z" />
+            </svg>
+
+            <span>Bejelentkezés vállalati Microsoft-fiókkal</span>
+            }
+          </button>
+        </div>
+      </div>
+
+      <!-- Lábléc -->
+      <footer class="border-t border-slate-200 bg-slate-50
+               px-8 py-5 text-center">
+        <p class="text-xs font-medium text-slate-500">
+          Kizárólag jogosult Praktiker-felhasználók számára.
+        </p>
+      </footer>
+    </div>
+
+    <!-- Külső verziófelirat -->
+    <p class="mt-5 text-center text-xs text-white/60">
+      Praktiker Asset Management
+    </p>
+  </section>
+</main>

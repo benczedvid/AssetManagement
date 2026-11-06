@@ -1,0 +1,164 @@
+services:
+  database:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: assetmanagement-database-dev
+
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+    ports:
+      - "1433:1433"
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          /opt/mssql-tools18/bin/sqlcmd
+          -S localhost
+          -U sa
+          -P "$${MSSQL_SA_PASSWORD}"
+          -C
+          -Q "SELECT 1"
+          || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+    restart: unless-stopped
+
+    networks:
+      - assetmanagement-dev
+
+  api:
+    build:
+      context: .
+      dockerfile: AssetManagement.WebApi/Dockerfile.dev
+
+    image: assetmanagement-api:latest
+    container_name: assetmanagement-api-dev
+
+    working_dir: /src
+
+    command:
+      - dotnet
+      - watch
+      - --project
+      - AssetManagement.WebApi/AssetManagement.WebApi.csproj
+      - run
+      - --no-launch-profile
+
+    depends_on:
+      database:
+        condition: service_healthy
+
+    env_file:
+      - ./.env.dev
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+      
+
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      DOTNET_WATCH_RESTART_ON_RUDE_EDIT: "true"
+
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+      ConnectionStrings__AssetManagementDatabase: >-
+        Server=database,1433;
+        Database=AssetManagement;
+        User Id=sa;
+        Password=${MSSQL_SA_PASSWORD};
+        Encrypt=True;
+        TrustServerCertificate=True;
+        MultipleActiveResultSets=True;
+
+    volumes:
+      - .:/src
+
+      - api-nuget-packages:/root/.nuget/packages
+      - api-data-protection:/root/.aspnet/DataProtection-Keys
+
+      - api-webapi-obj:/src/AssetManagement.WebApi/obj
+      - api-webapi-bin:/src/AssetManagement.WebApi/bin
+
+    ports:
+      - "5000:8080"
+
+    networks:
+      - assetmanagement-dev
+
+  frontend:
+    image: assetmanagement-frontend:latest
+
+    pull_policy: never
+    container_name: assetmanagement-frontend-dev
+
+    depends_on:
+      - api
+
+    env_file:
+      - ./.env.dev
+
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+
+        : "$${FRONTEND_CLIENT_ID:?FRONTEND_CLIENT_ID is required}"
+        : "$${FRONTEND_TENANT_ID:?FRONTEND_TENANT_ID is required}"
+        : "$${FRONTEND_API_SCOPE:?FRONTEND_API_SCOPE is required}"
+
+        mkdir -p /usr/share/nginx/html/assets
+
+        cat > /usr/share/nginx/html/assets/runtime-config.js <<EOF
+        window.runtimeConfig = {
+          production: false,
+          auth: {
+            clientId: "$${FRONTEND_CLIENT_ID}",
+            tenantId: "$${FRONTEND_TENANT_ID}",
+            authority: "https://login.microsoftonline.com/$${FRONTEND_TENANT_ID}",
+            redirectUri: "$${FRONTEND_REDIRECT_URI:-http://localhost:4200}",
+            postLogoutRedirectUri: "$${FRONTEND_POST_LOGOUT_REDIRECT_URI:-http://localhost:4200}"
+          },
+          api: {
+            baseUrl: "$${FRONTEND_API_BASE_URL:-/api}",
+            scope: "$${FRONTEND_API_SCOPE}"
+          }
+        };
+        EOF
+
+        echo "Frontend runtime configuration generated."
+
+        exec nginx -g 'daemon off;'
+
+    volumes:
+      - ./Client/dist/asset-management/browser:/usr/share/nginx/html
+      - ./Client/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+
+    ports:
+      - "4200:80"
+
+    networks:
+      - assetmanagement-dev
+
+volumes:
+  mssql-data:
+    name: assetmanagement-mssql-data
+
+  api-nuget-packages:
+  api-data-protection:
+  api-webapi-obj:
+  api-webapi-bin:
+
+networks:
+  assetmanagement-dev:
+    driver: bridge

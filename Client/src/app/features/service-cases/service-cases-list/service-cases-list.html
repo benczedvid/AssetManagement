@@ -1,0 +1,1029 @@
+<div class="service-cases-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Ügyintézés</p>
+      <h1>Szervizügyek</h1>
+      <p>Beküldés, javítás és visszavétel egy helyen.</p>
+    </div>
+
+    <div class="header-actions">
+      <button
+        mat-stroked-button
+        type="button"
+        class="header-refresh"
+        [disabled]="listLoading() || busy()"
+        (click)="loadList()"
+      >
+        <mat-icon>refresh</mat-icon>
+        Frissítés
+      </button>
+
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="busy()"
+        (click)="showOpenForm()"
+      >
+        <mat-icon>add</mat-icon>
+        Új szervizügy
+      </button>
+    </div>
+  </header>
+
+  <mat-card appearance="outlined" class="list-card">
+    <div class="section-header">
+      <h2>Ügylista</h2>
+
+      <span class="secondary-text">
+        {{ filteredItems().length }} /
+        {{ items().length }} ügy
+      </span>
+    </div>
+
+    <div class="filters">
+      <mat-chip-listbox
+        aria-label="Státusz szerinti szűrés"
+        [multiple]="true"
+        [value]="selectedStatusFilters()"
+        (change)="changeStatusFilter($event.value)"
+      >
+        @for (status of serviceCaseStatusOptions; track status) {
+          <mat-chip-option [value]="status">
+            {{ getStatusLabel(status) }}
+            ({{ statusCounts().get(status) ?? 0 }})
+          </mat-chip-option>
+        }
+      </mat-chip-listbox>
+
+      @if (selectedStatusFilters().length > 0) {
+        <button
+          mat-button
+          type="button"
+          (click)="clearStatusFilters()"
+        >
+          <mat-icon>filter_alt_off</mat-icon>
+          Szűrés törlése
+        </button>
+      }
+    </div>
+
+    @if (listLoading()) {
+      <div class="empty-state" role="status">
+        <mat-spinner diameter="36" />
+        <p>Ügyek betöltése...</p>
+      </div>
+    } @else if (listFailed()) {
+      <div class="empty-state">
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="loadList()"
+        >
+          <mat-icon>refresh</mat-icon>
+          Ügylista újratöltése
+        </button>
+      </div>
+    } @else if (filteredItems().length === 0) {
+      <div class="empty-state">
+        <mat-icon>build_circle</mat-icon>
+
+        <p>
+          {{
+            items().length === 0
+              ? 'Nincsenek szervizügyek.'
+              : 'A kiválasztott státuszban nincs találat.'
+          }}
+        </p>
+
+        @if (selectedStatusFilters().length > 0) {
+          <button
+            mat-button
+            type="button"
+            (click)="clearStatusFilters()"
+          >
+            Szűrés törlése
+          </button>
+        }
+      </div>
+    } @else {
+      <div
+        class="table-container"
+        role="region"
+        aria-label="Szervizügyek listája"
+        tabindex="0"
+      >
+        <table
+          mat-table
+          [dataSource]="filteredItems()"
+          class="cases-table"
+        >
+          <ng-container matColumnDef="caseNumber">
+            <th mat-header-cell *matHeaderCellDef>
+              Ügyszám
+            </th>
+
+            <td mat-cell *matCellDef="let item">
+              <button
+                mat-button
+                type="button"
+                aria-haspopup="dialog"
+                [attr.aria-label]="
+                  'Szervizügy megnyitása: ' + item.caseNumber
+                "
+                (click)="
+                  $event.stopPropagation();
+                  selectCase(item.id)
+                "
+              >
+                {{ item.caseNumber }}
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="asset">
+            <th mat-header-cell *matHeaderCellDef>
+              Eszköz
+            </th>
+
+            <td mat-cell *matCellDef="let item">
+              @if (getAssetById(item.assetId); as asset) {
+                <strong>{{ asset.assetName }}</strong>
+
+                <p class="secondary-text">
+                  {{ asset.serialNumber || 'Nincs gyári szám' }}
+                </p>
+              } @else {
+                <span class="secondary-text">
+                  Az eszköz adatai nem érhetők el.
+                </span>
+              }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="issueType">
+            <th mat-header-cell *matHeaderCellDef>
+              Hibatípus
+            </th>
+
+            <td mat-cell *matCellDef="let item">
+              {{ getIssueTypeLabel(item.issueType) }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>
+              Státusz
+            </th>
+
+            <td mat-cell *matCellDef="let item">
+              <span
+                class="status-badge"
+                [attr.data-tone]="getStatusTone(item.status)"
+              >
+                {{ getStatusLabel(item.status) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>
+              Létrehozva
+            </th>
+
+            <td mat-cell *matCellDef="let item">
+              {{
+                toUtcDate(item.createdAtUtc)
+                  | date: 'yyyy.MM.dd. HH:mm'
+              }}
+            </td>
+          </ng-container>
+
+          <tr
+            mat-header-row
+            *matHeaderRowDef="displayedColumns; sticky: true"
+          ></tr>
+
+          <tr
+            mat-row
+            *matRowDef="let item; columns: displayedColumns"
+            class="case-row"
+            (click)="selectCase(item.id)"
+          ></tr>
+        </table>
+      </div>
+    }
+  </mat-card>
+</div>
+
+<!-- Creation dialog -->
+
+<ng-template #openDialog>
+  <h2 mat-dialog-title id="open-service-case-title">
+    Új szervizügy indítása
+  </h2>
+
+  <mat-dialog-content>
+    <div class="dialog-body">
+      <!-- Asset selection -->
+
+      <section
+        class="service-asset-picker"
+        aria-labelledby="service-asset-picker-title"
+      >
+        <div class="asset-picker-heading">
+          <h3 id="service-asset-picker-title">
+            Eszköz kiválasztása
+          </h3>
+
+          <span
+            class="asset-selection-count"
+            role="status"
+            aria-live="polite"
+          >
+            {{
+              selectedAsset()
+                ? '1 kiválasztva'
+                : 'Nincs kiválasztás'
+            }}
+          </span>
+        </div>
+
+        @if (assetsLoading()) {
+          <div class="asset-picker-state" role="status">
+            <mat-spinner diameter="32" />
+            <p>Eszközök betöltése...</p>
+          </div>
+        } @else if (assetsFailed()) {
+          <div class="asset-picker-state">
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="busy()"
+              (click)="loadAssets()"
+            >
+              <mat-icon>refresh</mat-icon>
+              Eszközök újratöltése
+            </button>
+          </div>
+        } @else {
+          @if (assetPreselected()) {
+            <p class="secondary-text">
+              Az eszköz az eszközrészletezőből lett
+              kiválasztva, ezért itt nem módosítható.
+            </p>
+          }
+
+          <!-- Search -->
+
+          <div class="service-asset-search-toolbar">
+            <mat-form-field
+              appearance="outline"
+              subscriptSizing="dynamic"
+              class="service-asset-search-field"
+            >
+              <input
+                #serviceAssetSearchInput
+                matInput
+                type="text"
+                autocomplete="off"
+                aria-label="Eszközök keresése"
+                placeholder="Eszköznév, gyári szám vagy áruház keresése..."
+                [value]="assetSearchText()"
+                [disabled]="busy() || assetPreselected()"
+                (input)="
+                  updateAssetSearchText(
+                    serviceAssetSearchInput.value
+                  )
+                "
+              />
+
+              @if (assetSearchText()) {
+                <button
+                  mat-icon-button
+                  matSuffix
+                  type="button"
+                  aria-label="Keresés törlése"
+                  [disabled]="busy() || assetPreselected()"
+                  (click)="updateAssetSearchText('')"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              } @else {
+                <mat-icon matSuffix>search</mat-icon>
+              }
+            </mat-form-field>
+
+            <span
+              class="secondary-text"
+              role="status"
+              aria-live="polite"
+            >
+              {{ filteredAssets().length }} találat
+            </span>
+          </div>
+
+          <!-- Single-selection asset table -->
+
+          <div
+            class="service-asset-table-container"
+            role="region"
+            aria-label="Szervizügyhöz választható eszközök"
+            tabindex="0"
+          >
+            <table
+              mat-table
+              [dataSource]="filteredAssets()"
+              class="service-assets-table"
+            >
+              <ng-container matColumnDef="select">
+                <th mat-header-cell *matHeaderCellDef>
+                  Kiválasztás
+                </th>
+
+                <td mat-cell *matCellDef="let asset">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    [disabled]="busy() || assetPreselected()"
+                    [attr.aria-pressed]="
+                      selectedAsset()?.assetId === asset.assetId
+                    "
+                    [attr.aria-label]="
+                      'Eszköz kiválasztása: ' +
+                      asset.assetName +
+                      ', gyári szám: ' +
+                      (asset.serialNumber || 'Nincs megadva')
+                    "
+                    (click)="selectAssetById(asset.assetId)"
+                  >
+                    <mat-icon>
+                      {{
+                        selectedAsset()?.assetId === asset.assetId
+                          ? 'radio_button_checked'
+                          : 'radio_button_unchecked'
+                      }}
+                    </mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="assetName">
+                <th mat-header-cell *matHeaderCellDef>
+                  Eszköz
+                </th>
+
+                <td mat-cell *matCellDef="let asset">
+                  <strong class="service-asset-name">
+                    {{ asset.assetName }}
+                  </strong>
+
+                  <p class="secondary-text">
+                    {{ asset.manufacturer }}
+                    {{ asset.model }}
+                  </p>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="serialNumber">
+                <th mat-header-cell *matHeaderCellDef>
+                  Gyári szám
+                </th>
+
+                <td mat-cell *matCellDef="let asset">
+                  {{ asset.serialNumber || 'Nincs megadva' }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="store">
+                <th mat-header-cell *matHeaderCellDef>
+                  Áruház
+                </th>
+
+                <td mat-cell *matCellDef="let asset">
+                  {{
+                    asset.assignedStoreNumber ||
+                      'Nincs megadva'
+                  }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="assetStatus">
+                <th mat-header-cell *matHeaderCellDef>
+                  Állapot
+                </th>
+
+                <td mat-cell *matCellDef="let asset">
+                  <span
+                    class="asset-status"
+                    [attr.data-status]="asset.assetStatus"
+                  >
+                    {{
+                      getAssetStatusLabel(asset.assetStatus)
+                    }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <tr
+                mat-header-row
+                *matHeaderRowDef="
+                  assetDisplayedColumns;
+                  sticky: true
+                "
+              ></tr>
+
+              <tr
+                mat-row
+                *matRowDef="
+                  let asset;
+                  columns: assetDisplayedColumns
+                "
+                [class.asset-selected-row]="
+                  selectedAsset()?.assetId === asset.assetId
+                "
+              ></tr>
+
+              <tr *matNoDataRow>
+                <td
+                  class="service-asset-empty-cell"
+                  [attr.colspan]="assetDisplayedColumns.length"
+                >
+                  @if (assetSearchText().trim()) {
+                    Nincs a keresésnek megfelelő eszköz.
+                  } @else {
+                    Nincs megjeleníthető eszköz.
+                  }
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Selected asset summary -->
+
+          @if (selectedAsset(); as asset) {
+            <div class="service-asset-selection-summary">
+              <div>
+                <strong>{{ asset.assetName }}</strong>
+
+                <p class="secondary-text">
+                  Gyári szám:
+                  {{ asset.serialNumber || 'Nincs megadva' }}
+                </p>
+
+                <p class="secondary-text">
+                  Áruház:
+                  {{
+                    asset.assignedStoreNumber ||
+                      'Nincs megadva'
+                  }}
+                </p>
+              </div>
+
+              @if (!assetPreselected()) {
+                <button
+                  mat-button
+                  type="button"
+                  [disabled]="busy()"
+                  (click)="clearSelectedAsset()"
+                >
+                  Kiválasztás törlése
+                </button>
+              }
+            </div>
+          }
+        }
+      </section>
+
+      <!-- Issue type -->
+
+      <div class="field">
+        <label id="service-case-issue-label">
+          Hibatípus *
+        </label>
+
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+        >
+          <mat-select
+            aria-labelledby="service-case-issue-label"
+            placeholder="Válassz hibatípust"
+            [value]="newCaseIssueType()"
+            [disabled]="busy()"
+            (selectionChange)="
+              newCaseIssueType.set($event.value)
+            "
+          >
+            @for (type of serviceIssueTypeOptions; track type) {
+              <mat-option [value]="type">
+                {{ getIssueTypeLabel(type) }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      @if (isOtherIssueSelected()) {
+        <div class="field">
+          <label for="service-case-other-issue">
+            Egyéb hiba megnevezése *
+          </label>
+
+          <mat-form-field
+            appearance="outline"
+            subscriptSizing="dynamic"
+          >
+            <textarea
+              matInput
+              id="service-case-other-issue"
+              rows="3"
+              maxlength="2000"
+              [ngModel]="newCaseOtherIssueDescription()"
+              (ngModelChange)="
+                newCaseOtherIssueDescription.set($event)
+              "
+              [disabled]="busy()"
+            ></textarea>
+
+            <mat-hint align="end">
+              {{ newCaseOtherIssueDescription().length }} / 2000
+            </mat-hint>
+          </mat-form-field>
+        </div>
+      }
+
+      <!-- Description -->
+
+      <div class="field">
+        <label for="service-case-description">
+          Hibaleírás *
+        </label>
+
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+        >
+          <textarea
+            matInput
+            id="service-case-description"
+            rows="5"
+            maxlength="2000"
+            [ngModel]="newCaseDescription()"
+            (ngModelChange)="newCaseDescription.set($event)"
+            [disabled]="busy()"
+          ></textarea>
+
+          <mat-hint align="end">
+            {{ newCaseDescription().length }} / 2000
+          </mat-hint>
+        </mat-form-field>
+      </div>
+
+      @if (openInProgress()) {
+        <mat-progress-bar
+          mode="indeterminate"
+          aria-label="Szervizügy létrehozása folyamatban"
+        />
+      }
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button
+      mat-button
+      type="button"
+      [disabled]="busy()"
+      (click)="cancelOpenForm()"
+    >
+      Mégse
+    </button>
+
+    <button
+      mat-flat-button
+      type="button"
+      [disabled]="!canOpenServiceCase()"
+      (click)="openServiceCase()"
+    >
+      {{
+        openInProgress()
+          ? 'Létrehozás...'
+          : 'Szervizügy létrehozása'
+      }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>
+
+<!-- Details dialog -->
+
+<ng-template #detailsDialog>
+  <div class="dialog-heading">
+    <h2 mat-dialog-title id="service-case-details-title">
+      Szervizügy részletei
+    </h2>
+
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Részletező bezárása"
+      [disabled]="busy()"
+      (click)="closeDetailsDialog()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    @if (detailsLoading()) {
+      <div class="empty-state" role="status">
+        <mat-spinner diameter="36" />
+        <p>Részletek betöltése...</p>
+      </div>
+    } @else if (detailsFailed()) {
+      <div class="empty-state">
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="reloadDetails()"
+        >
+          Újrapróbálás
+        </button>
+      </div>
+    } @else if (details(); as item) {
+      <div class="dialog-body">
+        <div class="case-heading">
+          <h3>{{ item.caseNumber }}</h3>
+
+          <span
+            class="status-badge"
+            [attr.data-tone]="getStatusTone(item.status)"
+          >
+            {{ getStatusLabel(item.status) }}
+          </span>
+
+          <button
+            mat-icon-button
+            type="button"
+            aria-label="Ügy frissítése"
+            [disabled]="busy()"
+            (click)="reloadDetails()"
+          >
+            <mat-icon>refresh</mat-icon>
+          </button>
+        </div>
+
+        <!-- Case information -->
+
+        <mat-card appearance="outlined">
+          <mat-card-content>
+            <dl class="information-grid">
+              <div>
+                <dt>Hibatípus</dt>
+                <dd>{{ getIssueTypeLabel(item.issueType) }}</dd>
+              </div>
+
+              <div>
+                <dt>Létrehozta</dt>
+                <dd>{{ item.createdByUserName }}</dd>
+              </div>
+
+              <div>
+                <dt>Létrehozás ideje</dt>
+                <dd>
+                  {{
+                    toUtcDate(item.createdAtUtc)
+                      | date: 'yyyy.MM.dd. HH:mm'
+                  }}
+                </dd>
+              </div>
+
+              @if (getAssetById(item.assetId); as asset) {
+                <div>
+                  <dt>Eszköz</dt>
+                  <dd>{{ asset.assetName }}</dd>
+                </div>
+
+                <div>
+                  <dt>Gyári szám</dt>
+                  <dd>
+                    {{ asset.serialNumber || 'Nincs megadva' }}
+                  </dd>
+                </div>
+              } @else {
+                <div>
+                  <dt>Eszköz</dt>
+                  <dd>Az eszköz adatai nem érhetők el.</dd>
+                </div>
+              }
+            </dl>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Description -->
+
+        <section>
+          <h3>Hibaleírás</h3>
+          <p class="multiline">{{ item.description }}</p>
+
+          @if (item.otherIssueDescription) {
+            <h4>Egyéb hiba részletei</h4>
+
+            <p class="multiline">
+              {{ item.otherIssueDescription }}
+            </p>
+          }
+        </section>
+
+        <!-- Available actions -->
+
+        <mat-card appearance="outlined">
+          <mat-card-content>
+            <h3>Elérhető műveletek</h3>
+
+            @if (availableServiceCaseActions().length === 0) {
+              <p class="secondary-text">
+                Jelenleg nincs közvetlenül végrehajtható művelet.
+              </p>
+            }
+
+            @if (
+              availableServiceCaseActions().length <
+              item.availableActions.length
+            ) {
+              <p class="secondary-text">
+                A csomagfeladással és csomagátvétellel
+                kapcsolatos műveleteket a Csomagfeladás
+                modulban kell elvégezni.
+              </p>
+            }
+
+            <div class="action-buttons">
+              @for (
+                action of availableServiceCaseActions();
+                track action
+              ) {
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [class.active-action]="
+                    selectedAction() === action
+                  "
+                  [disabled]="busy()"
+                  (click)="selectAction(action)"
+                >
+                  {{ getActionLabel(action) }}
+                </button>
+              }
+            </div>
+
+            @if (selectedAction(); as action) {
+              <div class="action-form">
+                <h4>{{ getActionLabel(action) }}</h4>
+
+                <!-- Vendor -->
+
+                @if (requiresVendor(action)) {
+                  @if (vendorsLoading()) {
+                    <div class="loading-inline" role="status">
+                      <mat-spinner diameter="24" />
+                      <span>Szervizpartnerek betöltése...</span>
+                    </div>
+                  } @else if (vendorsFailed()) {
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="loadVendors()"
+                    >
+                      Szervizpartnerek újratöltése
+                    </button>
+                  } @else {
+                    <div class="field">
+                      <label id="service-case-vendor-label">
+                        Szervizpartner *
+                      </label>
+
+                      <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                      >
+                        <mat-select
+                          aria-labelledby="service-case-vendor-label"
+                          placeholder="Válassz szervizpartnert"
+                          [value]="actionVendorId()"
+                          [disabled]="busy()"
+                          (selectionChange)="
+                            actionVendorId.set($event.value)
+                          "
+                        >
+                          @for (vendor of vendors(); track vendor.id) {
+                            <mat-option [value]="vendor.id">
+                              {{ vendor.name }}
+                            </mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+
+                      @if (vendors().length === 0) {
+                        <p class="secondary-text">
+                          Nincs választható szervizpartner.
+                        </p>
+                      }
+                    </div>
+                  }
+                }
+
+                <!-- Comment or disposal reason -->
+
+                <div class="field">
+                  <label for="service-case-action-comment">
+                    {{
+                      action === 'DisposeAsset'
+                        ? 'Selejtezés indoklása *'
+                        : 'Megjegyzés'
+                    }}
+                  </label>
+
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                  >
+                    <textarea
+                      matInput
+                      id="service-case-action-comment"
+                      rows="4"
+                      maxlength="2000"
+                      [ngModel]="actionComment()"
+                      (ngModelChange)="actionComment.set($event)"
+                      [disabled]="busy()"
+                    ></textarea>
+
+                    <mat-hint align="end">
+                      {{ actionComment().length }} / 2000
+                    </mat-hint>
+                  </mat-form-field>
+                </div>
+
+                @if (action === 'DisposeAsset') {
+                  <p class="disposal-notice">
+                    A selejtezés az eszközt selejtezett,
+                    az ügyet megoldott állapotba helyezi.
+                    A végleges lezárás külön művelet.
+                    Aktív csomagban lévő eszköz nem selejtezhető.
+                  </p>
+                }
+
+                @if (actionInProgress()) {
+                  <mat-progress-bar
+                    mode="indeterminate"
+                    aria-label="Művelet végrehajtása folyamatban"
+                  />
+                }
+
+                <div class="form-actions">
+                  <button
+                    mat-button
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="cancelAction()"
+                  >
+                    Mégse
+                  </button>
+
+                  <button
+                    mat-flat-button
+                    type="button"
+                    [class.danger-button]="
+                      action === 'DisposeAsset'
+                    "
+                    [disabled]="!canSubmitAction()"
+                    (click)="executeSelectedAction()"
+                  >
+                    {{
+                      actionInProgress()
+                        ? 'Végrehajtás...'
+                        : getActionLabel(action)
+                    }}
+                  </button>
+                </div>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Event history -->
+
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              Eseménytörténet ({{ item.events.length }})
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+
+          @if (item.events.length === 0) {
+            <p class="secondary-text">
+              Nincs megjeleníthető esemény.
+            </p>
+          } @else {
+            <ol class="event-list">
+              @for (event of item.events; track event.id) {
+                <li class="event-item">
+                  <div class="event-heading">
+                    <strong>
+                      {{ getEventTypeLabel(event.type) }}
+                    </strong>
+
+                    <time
+                      class="secondary-text"
+                      [attr.datetime]="
+                        toUtcDate(event.occurredAtUtc)
+                      "
+                    >
+                      {{
+                        toUtcDate(event.occurredAtUtc)
+                          | date: 'yyyy.MM.dd. HH:mm'
+                      }}
+                    </time>
+                  </div>
+
+                  <p class="secondary-text">
+                    {{ event.performedByUserName }}
+                  </p>
+
+                  <div class="status-transition">
+                    @if (event.previousStatus !== null) {
+                      <span
+                        class="status-badge"
+                        [attr.data-tone]="
+                          getStatusTone(event.previousStatus)
+                        "
+                      >
+                        {{ getStatusLabel(event.previousStatus) }}
+                      </span>
+
+                      <mat-icon aria-hidden="true">
+                        arrow_forward
+                      </mat-icon>
+                    }
+
+                    <span
+                      class="status-badge"
+                      [attr.data-tone]="
+                        getStatusTone(event.newStatus)
+                      "
+                    >
+                      {{ getStatusLabel(event.newStatus) }}
+                    </span>
+                  </div>
+
+                  @if (event.comment) {
+                    <p class="multiline">
+                      {{ event.comment }}
+                    </p>
+                  }
+                </li>
+              }
+            </ol>
+          }
+        </mat-expansion-panel>
+      </div>
+    }
+  </mat-dialog-content>
+</ng-template>
+
+<!-- Shared confirmation -->
+
+<ng-template #confirmationDialog let-data>
+  <h2 mat-dialog-title id="service-case-confirmation-title">
+    {{ data.title }}
+  </h2>
+
+  <mat-dialog-content>
+    <p>{{ data.message }}</p>
+
+    @if (data.detail) {
+      <p class="confirmation-detail multiline">
+        {{ data.detail }}
+      </p>
+    }
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button
+      mat-button
+      type="button"
+      [mat-dialog-close]="false"
+      cdkFocusInitial
+    >
+      Mégse
+    </button>
+
+    <button
+      mat-flat-button
+      type="button"
+      [class.danger-button]="data.destructive"
+      [mat-dialog-close]="true"
+    >
+      {{ data.confirmLabel }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>

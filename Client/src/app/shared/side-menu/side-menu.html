@@ -1,0 +1,41 @@
+<nav class="mb-5 min-w-0" [attr.aria-label]="title">
+  <button
+    type="button"
+    class="flex w-full items-center justify-between rounded-lg px-3 py-2.5
+           text-left text-sm font-bold text-[#002B51]
+           transition-colors hover:bg-slate-100
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006AB2]"
+    [attr.aria-expanded]="submenuOpen()"
+    (click)="toggleSubmenu()">
+    <span>{{ title }}</span>
+    <span
+      class="text-xs transition-transform duration-150"
+      [class.rotate-180]="submenuOpen()"
+      aria-hidden="true">▾</span>
+  </button>
+
+  @if (submenuOpen()) {
+    <div class="mt-1 flex flex-col gap-1">
+      @for (item of items; track item.key) {
+        <label
+          class="flex min-h-10 cursor-pointer items-center gap-3 rounded-lg
+                 border-l-[3px] border-transparent px-3 py-2
+                 text-sm text-slate-700 transition-colors
+                 hover:bg-slate-100
+                 has-[:checked]:border-[#FFED00]
+                 has-[:checked]:bg-[#eaf3fc]
+                 has-[:checked]:font-semibold
+                 has-[:checked]:text-[#002B51]
+                 focus-within:outline focus-within:outline-2
+                 focus-within:outline-[#006AB2]">
+          <input
+            type="checkbox"
+            class="h-4 w-4 shrink-0 cursor-pointer accent-[#006AB2]"
+            [checked]="selectedKeys.includes(item.key)"
+            (change)="onItemChange(item.key, $event)" />
+          <span class="min-w-0 leading-5">{{ item.label }}</span>
+        </label>
+      }
+    </div>
+  }
+</nav>

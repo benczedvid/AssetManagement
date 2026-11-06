@@ -1,0 +1,661 @@
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+  <!-- Visszanavigálás -->
+  <div class="mb-6">
+    <a routerLink="/asset-list" queryParamsHandling="preserve" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900">
+      <svg
+        aria-hidden="true"
+        class="h-4 w-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M19 12H5"></path>
+        <path d="m12 19-7-7 7-7"></path>
+      </svg>
+      Vissza az eszközökhöz
+    </a>
+  </div>
+  <!-- Keep the success notification visible during subsequent data reloads. -->
+  @if (disposalSuccess()) {
+    <div
+      role="status"
+      aria-live="polite"
+      class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4"
+    >
+      <p class="text-sm font-medium text-emerald-800">
+        {{ disposalSuccess() }}
+      </p>
+    </div>
+  }
+  @if (isLoading()) {
+    <!-- Betöltési állapot -->
+    <section aria-live="polite" class="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+      <div aria-hidden="true" class="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600">
+      </div>
+      <p class="mt-4 text-sm font-medium text-slate-600">Eszköz adatainak betöltése...</p>
+    </section>
+  } @else if (loadError()) {
+    <!-- Hibaállapot -->
+    <section role="alert" class="rounded-2xl border border-red-200 bg-red-50 px-6 py-5">
+      <div class="flex items-start gap-4">
+        <div aria-hidden="true" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+          <svg
+            class="h-5 w-5 text-red-700"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 8v5"></path>
+            <path d="M12 16h.01"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base font-semibold text-red-900">Az eszköz nem tölthető be</h1>
+          <p class="mt-1 text-sm text-red-700">{{ loadError() }}</p>
+          <a routerLink="/asset-list" class="mt-4 inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100">
+            Vissza az eszközlistához
+          </a>
+        </div>
+      </div>
+    </section>
+  } @else if (asset(); as currentAsset) {
+    <!-- Eszköz fejléc -->
+    <section
+      class="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-3">
+            <h1 class="truncate text-2xl font-bold tracking-tight text-slate-900" [title]="currentAsset.assetName">{{ currentAsset.assetName }}</h1>
+            <span [class]="'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ' + getStatusClass(currentAsset.assetStatus)">{{ getStatusLabel(currentAsset.assetStatus) }}</span>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+            <span>RFID címke azonosítója:
+              <strong class="font-mono font-medium text-slate-700">{{ currentAsset.rfidTagId ?? 'Nincs megadva' }}</strong>
+            </span>
+            <span>Gyári szám:
+              <strong class="font-mono font-medium text-slate-700">{{ currentAsset.serialNumber }}</strong>
+            </span>
+            <span>Típus:
+              <strong class="font-medium text-slate-700">{{ currentAsset.assetType }}</strong>
+            </span>
+            <span>Áruház:
+              <strong class="font-medium text-slate-700">{{ currentAsset.assignedStoreName }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          @if (canManageAssets()) {
+            <a [routerLink]="['/assets', currentAsset.assetId,  'edit']"
+              class="inline-flex items-center justify-center
+                     rounded-lg border border-slate-300 bg-white
+                     px-4 py-2.5 text-sm font-medium
+                     text-slate-700 transition hover:bg-slate-50
+                     focus:outline-none focus:ring-2
+                     focus:ring-blue-500 focus:ring-offset-2">
+              Szerkesztés
+            </a>
+          }
+
+          @if (canOpenServiceCase()) {
+            <a routerLink="/administration/service"
+              [queryParams]="{assetId: currentAsset.assetId, open: true}"
+              class="inline-flex items-center justify-center
+                    rounded-lg bg-[#006AB2]
+                    px-4 py-2.5 text-sm font-semibold text-white
+                    transition-colors hover:bg-[#00548c]
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-[#006AB2]
+                    focus-visible:ring-offset-2">
+              Szervizbe küldés
+            </a>
+          }
+          <!-- Backend authorization is mandatory even when this button is visible. -->
+        @if (canDisposeCurrentAsset()) {
+          <button type="button"
+            aria-controls="asset-disposal-panel"
+            [attr.aria-expanded]="isDisposalFormOpen()"
+            [disabled]="isDisposing() || isDisposalFormOpen()"
+            (click)="openDisposalForm()"
+            class="inline-flex items-center justify-center rounded-lg
+                  border border-red-300 bg-white px-4 py-2.5
+                  text-sm font-semibold text-red-700 transition
+                  hover:bg-red-50
+                  focus-visible:outline-none focus-visible:ring-2
+                  focus-visible:ring-red-500 focus-visible:ring-offset-2
+                  disabled:cursor-not-allowed disabled:opacity-50">
+            Selejtezés
+          </button>
+        }
+        </div>
+      </div>
+    </section>
+    <!-- Standalone asset disposal requires a reason and explicit confirmation. -->
+    @if (isDisposalFormOpen() && canDisposeAssets()) {
+      <section id="asset-disposal-panel"
+        aria-labelledby="asset-disposal-title"
+        [attr.aria-busy]="isDisposing()"
+        class="mb-6 overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
+        <div class="border-b border-red-100 bg-red-50 px-6 py-4">
+          <h2 id="asset-disposal-title" class="text-base font-semibold text-red-900">
+            Eszköz selejtezése
+          </h2>
+
+          <p class="mt-1 text-sm text-red-800">
+            A művelet selejtezett állapotba helyezi az eszközt.
+            Az eszköz rekordja és előzményei megmaradnak.
+          </p>
+        </div>
+
+        <form (submit)="submitDisposal($event)" class="space-y-5 px-6 py-6">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-sm font-semibold text-slate-900">{{ currentAsset.assetName }}</p>
+
+            <p class="mt-1 break-all font-mono text-xs text-slate-600">Gyári szám: {{ currentAsset.serialNumber }}</p>
+
+            <p class="mt-3 text-sm text-slate-600">
+              Aktív szervizügy esetén a selejtezést a szervizügyből kell
+              elindítani.
+            </p>
+          </div>
+
+          <div>
+            <label for="asset-disposal-reason" class="block text-sm font-semibold text-slate-900">
+              Selejtezés indoklása
+              <span class="text-red-600" aria-hidden="true">*</span>
+            </label>
+
+            <textarea
+              #disposalReasonInput
+              id="asset-disposal-reason"
+              name="disposalReason"
+              rows="5"
+              required
+              [value]="disposalReason()"
+              [disabled]="isDisposing()"
+              [attr.aria-invalid]="disposalReasonLength() > maximumDisposalReasonLength ? 'true' : 'false'"
+              aria-describedby="asset-disposal-reason-help asset-disposal-reason-count"
+              (input)="updateDisposalReason(disposalReasonInput.value)"
+              class="mt-2 block w-full rounded-lg border border-slate-300
+                    bg-white px-3 py-2 text-sm text-slate-900
+                    focus:border-red-500 focus:outline-none
+                    focus:ring-2 focus:ring-red-200
+                    disabled:cursor-not-allowed disabled:bg-slate-100"></textarea>
+
+            <div class="mt-2 flex flex-wrap justify-between gap-2">
+              <p id="asset-disposal-reason-help" class="text-xs text-slate-500">
+                Kötelező. A kezdő és záró szóközök nélkül legfeljebb {{ maximumDisposalReasonLength }} karakter.
+              </p>
+
+              <p id="asset-disposal-reason-count" class="text-xs font-medium"
+                [class.text-red-700]="disposalReasonLength() > maximumDisposalReasonLength"
+                [class.text-slate-500]="disposalReasonLength() <= maximumDisposalReasonLength">
+                {{ disposalReasonLength() }} / {{ maximumDisposalReasonLength }}
+              </p>
+            </div>
+          </div>
+
+          <label for="asset-disposal-confirmation"
+            class="flex cursor-pointer items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <input
+              #disposalConfirmationInput
+              id="asset-disposal-confirmation"
+              name="disposalConfirmation"
+              type="checkbox"
+              required
+              [checked]="isDisposalConfirmed()"
+              [disabled]="isDisposing()"
+              (change)="updateDisposalConfirmation(disposalConfirmationInput.checked)"
+              class="mt-0.5 h-4 w-4 shrink-0 accent-red-600
+                    focus-visible:outline-none focus-visible:ring-2
+                    focus-visible:ring-red-500"/>
+
+            <span class="text-sm text-red-900">
+              Megerősítem, hogy a fenti eszközt a megadott indoklással selejtezni szeretném.
+            </span>
+          </label>
+
+          @if (disposalError()) {
+            <div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p class="text-sm font-medium text-red-800">{{ disposalError() }}</p>
+            </div>
+          }
+
+          <div class="flex flex-wrap justify-end gap-3">
+            <button type="button"
+              [disabled]="isDisposing()"
+              (click)="closeDisposalForm()"
+              class="rounded-lg border border-slate-300 bg-white
+                    px-4 py-2.5 text-sm font-medium text-slate-700
+                    hover:bg-slate-50
+                    focus-visible:outline-none focus-visible:ring-2
+                    focus-visible:ring-slate-500 focus-visible:ring-offset-2
+                    disabled:cursor-not-allowed disabled:opacity-50">
+              Mégse
+            </button>
+
+            <button type="submit"
+              [disabled]="!canSubmitDisposal()"
+              class="rounded-lg bg-red-600 px-4 py-2.5
+                    text-sm font-semibold text-white
+                    hover:bg-red-700
+                    focus-visible:outline-none focus-visible:ring-2
+                    focus-visible:ring-red-500 focus-visible:ring-offset-2
+                    disabled:cursor-not-allowed disabled:opacity-50">
+              @if (isDisposing()) {
+                Selejtezés folyamatban...
+              } @else {
+                Selejtezés végrehajtása
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+    }
+    <!-- Eszközadatok és aktuális hozzárendelés -->
+    <div class="grid gap-6 lg:grid-cols-3">
+      <!-- Eszközadatok -->
+      <section class="rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
+        <div class="border-b border-slate-200 px-6 py-4">
+          <h2 class="text-base font-semibold text-slate-900">Eszközadatok</h2>
+          <p class="mt-1 text-sm text-slate-500">Az eszköz azonosító és technikai adatai.</p>
+        </div>
+
+        <dl class="grid gap-x-8 gap-y-6 px-6 py-6 sm:grid-cols-2">
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Eszköznév</dt>
+            <dd class="mt-1 text-sm font-medium text-slate-900">{{ currentAsset.assetName }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Eszköztípus</dt>
+            <dd class="mt-1 text-sm text-slate-700">{{ currentAsset.assetType }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Állapot</dt>
+            <dd class="mt-1">
+              <span [class]="'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' +  getStatusClass(currentAsset.assetStatus)">{{ getStatusLabel(currentAsset.assetStatus) }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Gyártó</dt>
+            <dd class="mt-1 text-sm text-slate-700">{{ currentAsset.manufacturer }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Modell</dt>
+            <dd class="mt-1 text-sm text-slate-700">{{ currentAsset.model }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Gyári szám</dt>
+            <dd class="mt-1 font-mono text-sm text-slate-700">{{ currentAsset.serialNumber }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">IMEI</dt>
+            <dd class="mt-1 font-mono text-sm text-slate-700">{{ currentAsset.imei ?? 'Nincs megadva' }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">MAC-cím</dt>
+            <dd class="mt-1 font-mono text-sm text-slate-700">{{ currentAsset.macAddress ?? 'Nincs megadva' }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Wi-Fi MAC-cím</dt>
+            <dd class="mt-1 font-mono text-sm text-slate-700">{{currentAsset.wifiMacAddress ?? 'Nincs megadva'}}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase  tracking-wide text-slate-500">Operációs rendszer</dt>
+            <dd class="mt-1 text-sm text-slate-700">{{currentAsset.operatingSystem ?? 'Nincs megadva'}}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Rendszerverzió</dt>
+            <dd class="mt-1 text-sm text-slate-700">{{currentAsset.operatingSystemVersion ?? 'Nincs megadva'}}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Létrehozás dátuma</dt>
+            <dd class="mt-1 text-sm text-slate-700">{{currentAsset.createdAtUtc + 'Z' | date:'yyyy.MM.dd. HH:mm'}}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Aktuális hozzárendelés -->
+      <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-6 py-4">
+          <h2 class="text-base font-semibold text-slate-900">Aktuális hozzárendelés</h2>
+          <p class="mt-1 text-sm text-slate-500">Az eszköz jelenlegi helye és használója.</p>
+        </div>
+        <div class="space-y-6 px-6 py-6">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Áruház</p>
+            <p class="mt-1 text-sm font-medium text-slate-900">{{ currentAsset.assignedStoreName }}</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Dolgozó</p>
+
+            @if (hasAssignedEmployee()) {
+              <div class="mt-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <div class="flex items-start gap-3">
+                  <div aria-hidden="true" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                    <svg
+                      class="h-5 w-5 text-blue-700"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round">
+                      <circle cx="12" cy="8" r="4"></circle>
+                      <path d="M4 21a8 8 0 0 1 16 0"></path>
+                    </svg>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-blue-900" [title]="currentAsset.assignedEmployeeName ?? ''">{{ currentAsset.assignedEmployeeName }}</p>
+                    <p class="mt-1 font-mono text-xs text-blue-700">Törzsszám: {{ currentAsset.assignedEmployeeNumber }}</p>
+                  </div>
+                </div>
+
+                @if (
+                  currentAsset.assetStatus === 'Used_In_Store' ||
+                  currentAsset.assetStatus === 'Used_In_HQ'
+                ) {
+                  <p class="mt-3 border-t border-blue-100 pt-3 text-xs text-blue-700">Az eszköz jelenleg használatban van.</p>
+                }
+              </div>
+            } @else {
+              <div
+                class="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-sm text-slate-500">Nincs dolgozóhoz rendelve.</p>
+              </div>
+            }
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Állapot</p>
+            <div class="mt-2">
+              <span [class]="'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + getStatusClass(currentAsset.assetStatus)">
+                {{ getStatusLabel(currentAsset.assetStatus) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Adminisztrációs adatok -->
+    @if (canManageAssets()) {
+      <section class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-6 py-4">
+          <div class="flex items-start gap-3">
+            <div aria-hidden="true" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+              <svg
+                class="h-5 w-5 text-slate-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                <path d="M7 3v4"></path>
+                <path d="M17 3v4"></path>
+                <path d="M3 10h18"></path>
+              </svg>
+            </div>
+
+            <div>
+              <h2 class="text-base font-semibold text-slate-900">Adminisztrációs adatok</h2>
+              <p class="mt-1 text-sm text-slate-500">Az eszközhöz kapcsolódó beszerzési és adminisztrációs információk.</p>
+            </div>
+          </div>
+        </div>
+
+        <dl class="grid gap-x-8 gap-y-6 px-6 py-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Beszállító</dt>
+            <dd class="mt-1 text-sm font-medium text-slate-900">{{currentAsset.assignedVendorName ?? 'Nincs beszállító hozzárendelve'}}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibolt uppercase tracking-wide text-slate-500">Garancia vége</dt>
+            <dd class="mt-1 text-sm font-medium text-slate-900">{{ currentAsset.warrantyEndDate ?? 'Nincs beállítva' }}</dd>
+          </div>
+
+          <!--
+            A későbbi adminisztrációs mezőket ide lehet felvenni:
+            - Beszerzés dátuma
+            - Beszerzési érték
+            - Megrendelésszám
+            - Számlaszám
+            - Költséghely
+          -->
+        </dl>
+      </section>
+    }
+
+    <!-- Eszközhasználat és eszköztörténet -->
+    <div class="mt-6 grid gap-6" [class.lg:grid-cols-2]="canManageAssets()"
+    >
+      <!-- Eszközhasználat -->
+      <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-col gap-2 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Eszközhasználat</h2>
+            <p class="mt-1 text-sm text-slate-500">Az elmúlt 7 nap eszközmozgásai.</p>
+          </div>
+
+          <span class="inline-flex w-fit items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+            {{ currentAsset.history.length }} esemény
+          </span>
+        </div>
+
+        @if (currentAsset.history.length === 0) {
+          <div class="px-6 py-12 text-center">
+            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+              <svg
+                aria-hidden="true"
+                class="h-6 w-6 text-slate-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round" >
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 7v5l3 2"></path>
+              </svg>
+            </div>
+
+            <p class="mt-4 text-sm font-medium text-slate-700">Az elmúlt 7 napban nem történt eszközmozgás.</p>
+            <p class="mt-1 text-sm text-slate-500">A korábbi események ezen az oldalon nem jelennek meg.</p>
+          </div>
+        } @else {
+          <div class="max-h-[42rem] overflow-y-auto px-6 py-6">
+            <ol class="relative border-l border-slate-200">
+              @for (
+                event of currentAsset.history;
+                track event.id
+              ) {
+                <li class="relative ml-6 pb-8 last:pb-0">
+                  <span aria-hidden="true" class="absolute -left-[31px] top-1 h-3 w-3 rounded-full ring-4 ring-white"
+                    [class.bg-blue-600]="event.type === 'Checkout'"
+                    [class.bg-emerald-600]="event.type === 'Return'"
+                    [class.bg-slate-500]="event.type !== 'Checkout' && event.type !== 'Return'">
+                  </span>
+                  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-sm font-semibold text-slate-900">{{ getMovementTypeLabel(event.type) }}</p>
+                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ event.storeName }}</span>
+                      </div>
+                      <p class="mt-1 text-sm text-slate-600">{{ getMovementDescription(event.type) }}</p>
+                      <div class="mt-3 inline-flex max-w-full items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"> 
+                      <div aria-hidden="true" class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white">
+                          <svg
+                            class="h-4 w-4 text-slate-500"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <circle cx="12" cy="8" r="4"></circle>
+                            <path d="M4 21a8 8 0 0 1 16 0"></path>
+                          </svg>
+                        </div>
+
+                        <div class="min-w-0">
+                          <p class="truncate text-sm font-medium text-slate-800" [title]="event.employeeName">{{ event.employeeName }}</p>
+                          <p class="mt-0.5 font-mono text-xs text-slate-500">Törzsszám: {{ event.employeeNumber }}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <time class="whitespace-nowrap text-xs font-medium text-slate-500" [attr.datetime]="event.createdAtUtc">{{event.createdAtUtc + 'Z' | date:'yyyy.MM.dd. HH:mm'}}</time>
+                  </div>
+                </li>
+              }
+            </ol>
+          </div>
+        }
+      </section>
+
+      <!-- Eszköztörténet -->
+      @if (canManageAssets()) {
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex flex-col gap-2 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-slate-900">Eszköztörténet</h2>
+              <p class="mt-1 text-sm text-slate-500">Az eszköz adatain végrehajtott módosítások.</p>
+            </div>
+
+            @if (!isHistoryLoading()) {
+              <span class="inline-flex w-fit items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{{ assetHistory().length }} módosítás</span>
+            }
+          </div>
+
+          @if (isHistoryLoading()) {
+            <div aria-live="polite" class="px-6 py-12 text-center">
+              <div aria-hidden="true" class="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600">
+              </div>
+
+              <p class="mt-4 text-sm font-medium text-slate-600">Eszköztörténet betöltése...</p>
+            </div>
+          } @else if (historyLoadError()) {
+            <div role="alert" class="m-6 rounded-xl border border-red-200 bg-red-50 px-4 py-4">
+              <p class="text-sm font-medium text-red-800">{{ historyLoadError() }}</p>
+              <button type="button" class="mt-3 inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100" (click)="reloadHistory()">
+                Újrapróbálás
+              </button>
+            </div>
+          } @else if (assetHistory().length === 0) {
+            <div class="px-6 py-12 text-center">
+              <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <svg
+                  aria-hidden="true"
+                  class="h-6 w-6 text-slate-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <rect x="5" y="3" width="14" height="18" rx="2"></rect>
+                  <path d="M9 8h6"></path>
+                  <path d="M9 12h6"></path>
+                  <path d="M9 16h6"></path>
+                </svg>
+              </div>
+
+              <p class="mt-4 text-sm font-medium text-slate-700">Az eszköznek még nincs módosítási előzménye.</p>
+            </div>
+          } @else {
+            <div class="max-h-[42rem] overflow-y-auto px-6 py-6">
+              <ol class="relative border-l border-slate-200">
+                @for (history of assetHistory(); track history.id) {
+                  <li class="relative ml-6 pb-8 last:pb-0">
+                    <span aria-hidden="true" class="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-violet-600 ring-4 ring-white">
+                    </span>
+
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-sm font-semibold text-slate-900">{{getHistoryPropertyLabel(history.propertyName)}}</p>
+                        <span class="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+                          {{getHistoryActionLabel(history.action)}}
+                        </span>
+                      </div>
+
+                      <div class="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]sm:items-center">
+                        <div class="min-w-0 rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+                          <p class="text-xs font-semibold uppercase tracking-wide text-red-600">Korábbi érték</p>
+                          <p class="mt-1 break-all text-sm text-red-900" [title]="getHistoryValue(history.oldValue)">{{getHistoryValue(history.oldValue)}}</p>
+                        </div>
+                        <svg
+                          aria-hidden="true"
+                          class="hidden h-4 w-4
+                                 text-slate-400 sm:block"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round">
+                          <path d="M5 12h14"></path>
+                          <path d="m13 6 6 6-6 6"></path>
+                        </svg>
+
+                        <div class="min-w-0 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                          <p class="text-xs font-semibold uppercase tracking-wide text-emerald-600">Új érték</p>
+                          <p class="mt-1 break-all text-sm text-emerald-900" [title]="getHistoryValue(history.newValue)">{{getHistoryValue(history.newValue)}}</p>
+                        </div>
+                      </div>
+
+                      <div class="mt-3 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                        <p>Módosította:
+                          <strong class="font-medium text-slate-700">{{ history.changedByUserName }}</strong>
+                        </p>
+
+                        <time class="whitespace-nowrap" [attr.datetime]="history.changedAtUtc">{{history.changedAtUtc + 'Z' | date:'yyyy.MM.dd. HH:mm'}}</time>
+                      </div>
+                    </div>
+                  </li>
+                }
+              </ol>
+            </div>
+          }
+        </section>
+      }
+    </div>
+  } @else {
+    <!-- Biztonsági tartalékállapot -->
+    <section class="rounded-2xl border border-slate-200  bg-white px-6 py-12 text-center shadow-sm">
+      <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+        <svg
+          aria-hidden="true"
+          class="h-6 w-6 text-slate-400"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 8v5"></path>
+          <path d="M12 16h.01"></path>
+        </svg>
+      </div>
+      <h1 class="mt-4 text-base font-semibold text-slate-900"> Az eszköz adatai nem érhetők el</h1>
+      <p class="mt-1 text-sm text-slate-500">Az eszköz nem került betöltésre.</p>
+      <a routerLink="/asset-list"
+        class="mt-5 inline-flex items-center justify-center
+               rounded-lg border border-slate-300
+               bg-white px-4 py-2 text-sm font-medium
+               text-slate-700 transition hover:bg-slate-50
+               focus:outline-none focus:ring-2
+               focus:ring-blue-500 focus:ring-offset-2">
+        Vissza az eszközlistához
+      </a>
+    </section>
+  }
+</div>

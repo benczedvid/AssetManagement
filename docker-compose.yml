@@ -1,0 +1,87 @@
+name: assetmanagement
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: AssetManagement.WebApi/Dockerfile
+
+    image: assetmanagement-api:${APP_VERSION:-latest}
+    container_name: assetmanagement-api
+
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:${API_CONTAINER_PORT:-8080}
+
+      ConnectionStrings__AssetManagementDatabase: ${DATABASE_CONNECTION_STRING}
+
+      AzureAd__Instance: ${AZUREAD_INSTANCE}
+      AzureAd__TenantId: ${AZUREAD_TENANT_ID}
+      AzureAd__ClientId: ${AZUREAD_API_CLIENT_ID}
+      AzureAd__Audience: ${AZUREAD_API_AUDIENCE}
+      AzureAd__Scopes: ${AZUREAD_SCOPES}
+
+      MicrosoftGraphEmail__TenantId: ${MICROSOFTGRAPHEMAIL_TENANTID}
+      MicrosoftGraphEmail__ClientId: ${MICROSOFTGRAPHEMAIL_CLIENTID}
+      MicrosoftGraphEmail__CLientSecret: ${MICROSOFTGRAPHEMAIL_CLIENTSECRET}
+      MicrosoftGraphEmail__SendUserPrincipalName: ${MICROSOFTGRAPHEMAIL_SENDERUSERPRINCIPALNAME}
+      
+      AllowedHosts: ${ALLOWED_HOSTS}
+    
+    expose:
+      - "${API_CONTAINER_PORT:-8080}"
+
+    networks:
+      - application-network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build:
+      context: ./Client
+      dockerfile: Dockerfile
+
+    image: assetmanagement-frontend:${APP_VERSION:-latest}
+    container_name: assetmanagement-frontend
+
+    restart: unless-stopped
+
+    depends_on:
+      - api
+
+    environment:
+      FRONTEND_CLIENT_ID: ${FRONTEND_CLIENT_ID}
+      FRONTEND_TENANT_ID: ${FRONTEND_TENANT_ID}
+      FRONTEND_REDIRECT_URI: ${FRONTEND_REDIRECT_URI}
+      FRONTEND_POST_LOGOUT_REDIRECT_URI: ${FRONTEND_POST_LOGOUT_REDIRECT_URI}
+      FRONTEND_API_BASE_URL: ${FRONTEND_API_BASE_URL:-/api}
+      FRONTEND_API_SCOPE: ${FRONTEND_API_SCOPE}
+
+    ports:
+      - "${FRONTEND_HOST_IP:-127.0.0.1}:${FRONTEND_HOST_PORT:-8080}:${FRONTEND_CONTAINER_PORT:-80}"
+
+    networks:
+      - application-network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  application-network:
+    name: assetmanagement-network
+    driver: bridge

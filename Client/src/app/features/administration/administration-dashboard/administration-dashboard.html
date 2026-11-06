@@ -1,0 +1,211 @@
+<section class="min-w-0 p-4 sm:p-6 xl:p-8">
+  <div class="mx-auto w-full max-w-[1600px]">
+    <!-- Header -->
+    <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p class="text-sm font-semibold text-[#006AB2]">Ügyintézés</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight text-[#002B51] sm:text-3xl">Áttekintés</h1>
+        <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Szervizügyek és csomagküldési folyamatok összesített állapota.</p>
+      </div>
+
+      <button  type="button"
+        (click)="refresh()"
+        [disabled]="loading()"
+        class="inline-flex min-h-11 items-center justify-center gap-2
+               rounded-lg bg-[#FFED00] px-4 py-2.5
+               text-sm font-bold text-[#002B51] shadow-sm
+               transition-colors hover:bg-yellow-300
+               focus-visible:outline-none
+               focus-visible:ring-2 focus-visible:ring-[#006AB2]
+               focus-visible:ring-offset-2
+               disabled:cursor-not-allowed disabled:opacity-60">
+        <span class="material-symbols-outlined text-xl"  [class.animate-spin]="loading()" aria-hidden="true">refresh</span>
+        {{ loading() ? 'Frissítés...' : 'Frissítés' }}
+      </button>
+    </header>
+    <!-- Error message -->
+    @if (error(); as errorMessage) {
+      <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+        <div class="flex items-start gap-3">
+          <span class="material-symbols-outlined shrink-0 text-2xl text-red-700" aria-hidden="true">error</span>
+          <div>
+            <p class="font-bold">Az áttekintés nem tölthető be</p>
+            <p class="mt-1">{{ errorMessage }}</p>
+          </div>
+        </div>
+      </div>
+    }
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      aria-label="Ügyintézési összesítések" [attr.aria-busy]="loading()">
+      <a routerLink="/administration/service"
+        class="group rounded-xl border border-slate-200
+               bg-white p-5 shadow-sm transition
+               hover:-translate-y-0.5 hover:border-blue-300
+               hover:shadow-md
+               focus-visible:outline-none
+               focus-visible:ring-2 focus-visible:ring-[#006AB2]
+               focus-visible:ring-offset-2">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-slate-600">Aktív szervizügyek</p>
+            <p class="mt-3 text-3xl font-bold text-[#002B51]">{{ activeServiceCaseCount() }}</p>
+          </div>
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#006AB2]"  aria-hidden="true">
+             <span class="material-symbols-outlined text-2xl">build</span>
+          </span>
+        </div>
+        <div class="mt-5 flex items-center gap-2 text-sm font-bold text-[#006AB2]">Szerviz megnyitása
+          <span class="material-symbols-outlined text-lg transition-transform group-hover:translate-x-1" aria-hidden="true">
+            arrow_forward
+          </span>
+        </div>
+      </a>
+
+      <!-- Active packages -->
+
+      <a routerLink="/administration/packages"
+        class="group rounded-xl border border-slate-200
+               bg-white p-5 shadow-sm transition
+               hover:-translate-y-0.5 hover:border-blue-300
+               hover:shadow-md
+               focus-visible:outline-none
+               focus-visible:ring-2 focus-visible:ring-[#006AB2]
+               focus-visible:ring-offset-2">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-slate-600">Folyamatban lévő csomagok</p>
+            <p class="mt-3 text-3xl font-bold text-[#002B51]">{{ totalPackageCount() }}</p>
+          </div>
+
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-[#002B51]" aria-hidden="true">
+            <span class="material-symbols-outlined text-2xl">inventory_2</span>
+          </span>
+        </div>
+
+        <div class="mt-5 flex items-center gap-2 text-sm font-bold text-[#006AB2]">
+          Csomagok megnyitása
+          <span class="material-symbols-outlined text-lg transition-transform group-hover:translate-x-1" aria-hidden="true">
+            arrow_forward
+          </span>
+        </div>
+      </a>
+      <a routerLink="/administration/packages"
+        class="group rounded-xl border border-yellow-200
+               bg-white p-5 shadow-sm transition
+               hover:-translate-y-0.5 hover:border-yellow-400
+               hover:shadow-md
+               focus-visible:outline-none
+               focus-visible:ring-2 focus-visible:ring-[#006AB2]
+               focus-visible:ring-offset-2">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-slate-600">Feladásra vár</p>
+            <p class="mt-3 text-3xl font-bold text-[#002B51]">{{ awaitingDispatchCount() }}</p>
+          </div>
+
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-100 text-amber-700" aria-hidden="true">
+            <span class="material-symbols-outlined text-2xl">local_shipping</span>
+          </span>
+        </div>
+
+        <p class="mt-5 text-sm text-slate-500">Előkészített, de még nem feladott csomagok.</p>
+      </a>
+      <a routerLink="/administration/packages"
+        class="group rounded-xl border border-green-200
+               bg-white p-5 shadow-sm transition
+               hover:-translate-y-0.5 hover:border-green-400
+               hover:shadow-md
+               focus-visible:outline-none
+               focus-visible:ring-2 focus-visible:ring-[#006AB2]
+               focus-visible:ring-offset-2">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-slate-600">Átvételre vár</p>
+            <p class="mt-3 text-3xl font-bold text-[#002B51]">{{ awaitingReceiptCount() }}</p>
+          </div>
+
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 text-green-700" aria-hidden="true">
+            <span class="material-symbols-outlined text-2xl">move_to_inbox</span>
+          </span>
+        </div>
+
+        <p class="mt-5 text-sm text-slate-500">Az aktuális telephelyre érkező csomagok.</p>
+      </a>
+    </section>
+
+    <section class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <article class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-5 py-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-[#006AB2]" aria-hidden="true">build</span>
+            <h2 class="text-lg font-bold text-[#002B51]">Szerviz</h2>
+          </div>
+
+          <p class="mt-1 text-sm text-slate-600">Szervizügyek kezelése, javítás és visszavétel.</p>
+        </div>
+
+        <div class="p-5">
+          <div class="rounded-lg bg-blue-50 p-4">
+            <p class="text-sm font-semibold text-blue-800">Aktív ügyek</p>
+            <p class="mt-2 text-3xl font-bold text-[#002B51]">{{ activeServiceCaseCount() }}</p>
+          </div>
+
+          <a routerLink="/administration/service"
+            class="mt-5 inline-flex min-h-11 w-full items-center
+                   justify-center gap-2 rounded-lg bg-[#006AB2]
+                   px-4 py-2.5 text-sm font-bold text-white
+                   transition-colors hover:bg-blue-700
+                   focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-[#006AB2]
+                   focus-visible:ring-offset-2 sm:w-auto">
+            Szervizügyek megnyitása
+            <span class="material-symbols-outlined text-lg" aria-hidden="true">arrow_forward</span>
+          </a>
+        </div>
+      </article>
+      <article class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-5 py-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-[#006AB2]" aria-hidden="true">inventory_2</span>
+            <h2 class="text-lg font-bold text-[#002B51]">Csomagfeladás</h2>
+          </div>
+
+          <p class="mt-1 text-sm text-slate-600">Csomagok előkészítése, feladása és érkeztetése.</p>
+        </div>
+
+        <div class="p-5">
+          <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="rounded-lg bg-slate-100 p-4">
+              <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Aktív</dt>
+              <dd class="mt-2 text-2xl font-bold text-[#002B51]">{{ activePackageCount() }}</dd>
+            </div>
+
+            <div class="rounded-lg bg-yellow-50 p-4">
+              <dt class="text-xs font-bold uppercase tracking-wide text-amber-700">Feladásra vár</dt>
+              <dd class="mt-2 text-2xl font-bold text-[#002B51]">{{ awaitingDispatchCount() }}</dd>
+            </div>
+
+            <div class="rounded-lg bg-green-50 p-4">
+              <dt class="text-xs font-bold uppercase tracking-wide text-green-700">Átvételre vár</dt>
+              <dd class="mt-2 text-2xl font-bold text-[#002B51]">{{ awaitingReceiptCount() }}</dd>
+            </div>
+          </dl>
+
+          <a routerLink="/administration/packages"
+            class="mt-5 inline-flex min-h-11 w-full items-center
+                   justify-center gap-2 rounded-lg bg-[#006AB2]
+                   px-4 py-2.5 text-sm font-bold text-white
+                   transition-colors hover:bg-blue-700
+                   focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-[#006AB2]
+                   focus-visible:ring-offset-2 sm:w-auto">
+            Csomagkezelés megnyitása
+
+            <span class="material-symbols-outlined text-lg" aria-hidden="true">arrow_forward</span>
+          </a>
+        </div>
+      </article>
+
+    </section>
+  </div>
+</section>
