@@ -1,7 +1,5 @@
 # AssetManagement
 
-# AssetManagement
-
 AssetManagement is a web-based asset management application designed to manage company IT equipment throughout its lifecycle.
 
 The system provides centralized asset tracking, store assignment, inventory management, service case handling, and package-based asset transportation between locations.
