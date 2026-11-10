@@ -43,6 +43,13 @@
          class="text-sm font-medium text-white transition-colors hover:text-yellow-300 focus:outline-none">
         Ügyintézés</a>
       }
+      @if (canViewSettings()) {
+        <a routerLink="/settings"
+          routerLinkActive="text-yellow-400 font-semibold"
+          class="text-sm font-medium text-white transition-colors hover:text-yellow-300 focus:outline-none">
+          Beállítások
+        </a>
+      }
       </div>
     </div>
 

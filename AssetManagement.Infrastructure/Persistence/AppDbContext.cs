@@ -9,6 +9,7 @@ using AssetManagement.Domain.Entities.AssetHistories;
 using AssetManagement.Domain.Entities.ServiceCases;
 using AssetManagement.Domain.Entities.CaseNumbers;
 using AssetManagement.Domain.Entities.Packages;
+using AssetManagement.Domain.Entities.ServiceDesk;
 
 namespace AssetManagement.Infrastructure.Persistence
 {
@@ -32,6 +33,10 @@ namespace AssetManagement.Infrastructure.Persistence
         public DbSet<Package> Packages => Set<Package>();
         public DbSet<PackageItem> PackageItems => Set<PackageItem>();
         public DbSet<PackageEvent> PackageEvents => Set<PackageEvent>();
+        public DbSet<ServiceDeskRequestClosureOutbox> ServiceDeskRequestClosureOutbox => Set<ServiceDeskRequestClosureOutbox>();
+        public DbSet<ServiceDeskRequestOutbox> ServiceDeskRequestOutbox  => Set<ServiceDeskRequestOutbox>();
+        public DbSet<ServiceDeskReconciliationAudit> ServiceDeskReconciliationAudits => Set<ServiceDeskReconciliationAudit>();
+        public DbSet<ServiceDeskNoteOutbox> ServiceDeskNoteOutbox => Set<ServiceDeskNoteOutbox>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

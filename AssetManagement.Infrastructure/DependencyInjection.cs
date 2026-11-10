@@ -6,6 +6,7 @@ using AssetManagement.Application.Common.Interfaces.Email;
 using AssetManagement.Application.Common.Interfaces.Employees;
 using AssetManagement.Application.Common.Interfaces.Packages;
 using AssetManagement.Application.Common.Interfaces.ServiceCases;
+using AssetManagement.Application.Common.Interfaces.ServiceDesk;
 using AssetManagement.Application.Common.Interfaces.Stores;
 using AssetManagement.Application.Common.Interfaces.Users;
 using AssetManagement.Application.Common.Interfaces.Vendors;
@@ -14,6 +15,7 @@ using AssetManagement.Infrastructure.Email;
 using AssetManagement.Infrastructure.Identity;
 using AssetManagement.Infrastructure.Persistence;
 using AssetManagement.Infrastructure.Persistence.Repositories;
+using AssetManagement.Infrastructure.ServiceDesk;
 using Azure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,28 +27,35 @@ namespace AssetManagement.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var connectionString =
-            configuration.GetConnectionString("AssetManagementDatabase")
+        var connectionString = configuration.GetConnectionString("AssetManagementDatabase")
             ?? throw new InvalidOperationException("The database connection string is missing.");
 
-        services.AddDbContext<AppDbContext>(options =>options.UseSqlServer(connectionString));
-        services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString), ServiceLifetime.Scoped);
+        services.AddDbContext<AppDbContext>(
+            options => options.UseSqlServer(connectionString));
+
+        services.AddDbContextFactory<AppDbContext>(
+            options => options.UseSqlServer(connectionString),
+            ServiceLifetime.Scoped);
+
         services.AddScoped<ICaseNumberGenerator, CaseNumberGenerator>();
 
-        RegisterRepositories(services);
+        RegisterRepositories(services); 
         RegisterMicrosoftGraph(services, configuration);
 
         services.AddScoped<IEmailSender, MicrosoftGraphEmailSender>();
-
         services.AddScoped<IEntraUserProfileService, MicrosoftGraphEntraUserProfileService>();
         services.AddScoped<ICurrentApplicationUserResolver, CurrentApplicationUserResolver>();
-        
         services.AddScoped<IAssetOperationExecutor, AssetOperationExecutor>();
+
+        RegisterServiceDesk(services, configuration);
+
         return services;
     }
 
@@ -55,41 +64,31 @@ public static class DependencyInjection
         services.AddScoped<IApplicationUserRepository, ApplicationUserRepository>();
         services.AddScoped<IStoreRepository, StoreRepository>();
         services.AddScoped<IAssetRepository, AssetRepository>();
-        services.AddScoped<IEmployeeRepository,EmployeeRepository>();
+        services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IAssetMovementRepository, AssetMovementRepository>();
         services.AddScoped<IUnreturnedEmployeeAssetReportRepository, UnreturnedEmployeeAssetReportRepository>();
         services.AddScoped<IVendorRepository, VendorRepository>();
         services.AddScoped<IAssetHistoryRepository, AssetHistoryRepository>();
         services.AddScoped<IServiceCaseRepository, ServiceCaseRepository>();
         services.AddScoped<IPackageRepository, PackageRepository>();
+        services.AddScoped<IServiceDeskRequestClosureOutboxRepository, ServiceDeskRequestClosureOutboxRepository>();
+        services.AddScoped<IServiceDeskRequestOutboxRepository, ServiceDeskRequestOutboxRepository>();
+        services.AddScoped<IServiceDeskSyncOperationsRepository, ServiceDeskSyncOperationsRepository>();
+        services.AddScoped<IServiceDeskNoteOutboxRepository, ServiceDeskNoteOutboxRepository>();
     }
 
-    private static void RegisterMicrosoftGraph(
-        IServiceCollection services,
-        IConfiguration configuration)
+    private static void RegisterMicrosoftGraph(IServiceCollection services, IConfiguration configuration)
     {
-        services
-            .AddOptions<MicrosoftGraphEmailOptions>()
-            .Bind(
-                configuration.GetSection(
-                    MicrosoftGraphEmailOptions.SectionName))
+        services.AddOptions<MicrosoftGraphEmailOptions>()
+            .Bind(configuration.GetSection(MicrosoftGraphEmailOptions.SectionName))
             .Validate(
-                options =>
-                    !string.IsNullOrWhiteSpace(options.TenantId),
-                "MicrosoftGraphEmail:TenantId is required.")
+                options => !string.IsNullOrWhiteSpace(options.TenantId), "MicrosoftGraphEmail:TenantId is required.")
             .Validate(
-                options =>
-                    !string.IsNullOrWhiteSpace(options.ClientId),
-                "MicrosoftGraphEmail:ClientId is required.")
+                options => !string.IsNullOrWhiteSpace(options.ClientId), "MicrosoftGraphEmail:ClientId is required.")
             .Validate(
-                options =>
-                    !string.IsNullOrWhiteSpace(options.ClientSecret),
-                "MicrosoftGraphEmail:ClientSecret is required.")
+                options => !string.IsNullOrWhiteSpace(options.ClientSecret), "MicrosoftGraphEmail:ClientSecret is required.")
             .Validate(
-                options =>
-                    !string.IsNullOrWhiteSpace(
-                        options.SendUserPrincipalName),
-                "MicrosoftGraphEmail:SendUserPrincipalName is required.")
+                options => !string.IsNullOrWhiteSpace(options.SendUserPrincipalName), "MicrosoftGraphEmail:SendUserPrincipalName is required.")
             .ValidateOnStart();
 
         services.AddSingleton<GraphServiceClient>(
@@ -108,5 +107,33 @@ public static class DependencyInjection
                     credential,
                     ["https://graph.microsoft.com/.default"]);
             });
+    }
+
+    private static void RegisterServiceDesk(IServiceCollection services, IConfiguration configuration)
+    {
+        services
+            .AddOptions<ServiceDeskOptions>()
+            .Bind(configuration.GetSection(ServiceDeskOptions.SectionName))
+            .Validate(
+                options =>
+                    Uri.TryCreate(
+                        options.BaseUrl,
+                        UriKind.Absolute,
+                        out var uri)
+                    && uri.Scheme == Uri.UriSchemeHttps,
+                "ServiceDeskPlus:BaseUrl must be a valid HTTPS URL.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.ApiKey), "ServiceDeskPlus:ApiKey is required.")
+            .ValidateOnStart();
+
+        services.AddHttpClient<IServiceDeskClient, ServiceDeskClient>(
+            client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+
+        services.AddScoped<ServiceDeskRequestClosureOutboxProcessor>();
+        services.AddScoped<ServiceDeskRequestOutboxProcessor>();
+        services.AddScoped<ServiceDeskNoteOutboxProcessor>();
+        services.AddHostedService<ServiceDeskSynchronizationBackgroundService>();
     }
 }

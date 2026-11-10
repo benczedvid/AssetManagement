@@ -3,11 +3,13 @@ using AssetManagement.Application.Common.Interfaces.AssetHistories;
 using AssetManagement.Application.Common.Interfaces.Assets;
 using AssetManagement.Application.Common.Interfaces.Packages;
 using AssetManagement.Application.Common.Interfaces.ServiceCases;
+using AssetManagement.Application.Common.Interfaces.ServiceDesk;
 using AssetManagement.Application.Common.Interfaces.Users;
 using AssetManagement.Application.ServiceCases.Exceptions;
 using AssetManagement.Domain.Entities.AssetHistories;
 using AssetManagement.Domain.Entities.Assets;
 using AssetManagement.Domain.Entities.ServiceCases;
+using AssetManagement.Domain.Entities.ServiceDesk;
 using AssetManagement.Domain.Entities.Users;
 
 namespace AssetManagement.Application.ServiceCases.DisposeServiceCaseAsset;
@@ -27,9 +29,12 @@ namespace AssetManagement.Application.ServiceCases.DisposeServiceCaseAsset;
 /// The disposal reason is recorded in the service case event
 /// and in the asset history.
 ///
+/// When the service case status changes and an external ServiceDesk
+/// request exists, a task outbox entry is created.
+///
 /// All repositories must share the same scoped persistence context
-/// so that the asset, service case, event, and history entries
-/// are persisted together in a single save.
+/// so that the asset, service case, event, history entries,
+/// and ServiceDesk task outbox are persisted together.
 /// </remarks>
 public sealed class DisposeServiceCaseAssetHandler
 {
@@ -42,6 +47,7 @@ public sealed class DisposeServiceCaseAssetHandler
     private readonly ICurrentApplicationUserResolver _currentApplicationUserResolver;
     private readonly IPackageRepository _packageRepository;
     private readonly IAssetOperationExecutor _assetOperationExecutor;
+    private readonly IServiceDeskNoteOutboxRepository _noteOutboxRepository;
 
     /// <summary>
     /// Initializes a new instance of the
@@ -49,7 +55,8 @@ public sealed class DisposeServiceCaseAssetHandler
     /// </summary>
     /// <param name="serviceCaseRepository">
     /// The repository used to load the service case,
-    /// record its disposal event, and save the changes.
+    /// record its disposal event, create the ServiceDesk task outbox,
+    /// and save the changes.
     /// </param>
     /// <param name="assetRepository">
     /// The repository used to load the asset for modification.
@@ -64,8 +71,10 @@ public sealed class DisposeServiceCaseAssetHandler
     /// The repository used to verify that the asset is not part of a package.
     /// </param>
     /// <param name="assetOperationExecutor">
-    /// The executor used to perform the asset disposal operation within a transaction.
+    /// The executor used to perform the asset disposal operation
+    /// within a transaction.
     /// </param>
+    /// <param name="serviceDeskNoteOutboxRepository"></param>
     /// <exception cref="ArgumentNullException">
     /// A required dependency is null.
     /// </exception>
@@ -75,7 +84,8 @@ public sealed class DisposeServiceCaseAssetHandler
         IAssetHistoryRepository assetHistoryRepository,
         ICurrentApplicationUserResolver currentApplicationUserResolver,
         IPackageRepository packageRepository,
-        IAssetOperationExecutor assetOperationExecutor)
+        IAssetOperationExecutor assetOperationExecutor,
+        IServiceDeskNoteOutboxRepository serviceDeskNoteOutboxRepository)
     {
         ArgumentNullException.ThrowIfNull(serviceCaseRepository);
         ArgumentNullException.ThrowIfNull(assetRepository);
@@ -83,6 +93,7 @@ public sealed class DisposeServiceCaseAssetHandler
         ArgumentNullException.ThrowIfNull(currentApplicationUserResolver);
         ArgumentNullException.ThrowIfNull(packageRepository);
         ArgumentNullException.ThrowIfNull(assetOperationExecutor);
+        ArgumentNullException.ThrowIfNull(serviceDeskNoteOutboxRepository);
 
         _serviceCaseRepository = serviceCaseRepository;
         _assetRepository = assetRepository;
@@ -90,6 +101,7 @@ public sealed class DisposeServiceCaseAssetHandler
         _currentApplicationUserResolver = currentApplicationUserResolver;
         _packageRepository = packageRepository;
         _assetOperationExecutor = assetOperationExecutor;
+        _noteOutboxRepository = serviceDeskNoteOutboxRepository;
     }
 
     /// <summary>
@@ -102,7 +114,11 @@ public sealed class DisposeServiceCaseAssetHandler
     /// and its asset relationship is revalidated before disposal.
     ///
     /// Authorization, active package validation, state changes,
-    /// audit creation, and saving occur inside the protected operation.
+    /// audit creation, outbox creation, and saving occur
+    /// inside the protected operation.
+    ///
+    /// No external ServiceDesk API calls are made within
+    /// the database transaction.
     /// </remarks>
     /// <param name="serviceCaseId">
     /// The identifier of the service case.
@@ -145,10 +161,7 @@ public sealed class DisposeServiceCaseAssetHandler
     /// Thrown when the execution context does not support
     /// the protected operation.
     /// </exception>
-    public async Task<DisposeServiceCaseAssetResponse> HandleAsync(
-        Guid serviceCaseId,
-        DisposeServiceCaseAssetRequest request,
-        CancellationToken cancellationToken = default)
+    public async Task<DisposeServiceCaseAssetResponse> HandleAsync(Guid serviceCaseId, DisposeServiceCaseAssetRequest request, CancellationToken cancellationToken = default)
     {
         ValidateServiceCaseId(serviceCaseId);
         ArgumentNullException.ThrowIfNull(request);
@@ -156,23 +169,18 @@ public sealed class DisposeServiceCaseAssetHandler
         _ = ValidateAndNormalizeReason(request.Reason);
 
         // This lookup must remain no-tracking.
-        var serviceCaseSnapshot =
-            await _serviceCaseRepository.GetByIdAsync(
-                serviceCaseId,
-                cancellationToken)
+        var serviceCaseSnapshot = await _serviceCaseRepository.GetByIdAsync(serviceCaseId, cancellationToken)
             ?? throw new ServiceCaseNotFoundException(serviceCaseId);
 
         var assetId = serviceCaseSnapshot.AssetId;
 
         if (assetId == Guid.Empty)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCaseId,
+            throw new ServiceCaseStateConflictException(serviceCaseId,
                 "The service case does not reference a valid asset.");
         }
 
-        return await _assetOperationExecutor
-            .ExecuteAsync<DisposeServiceCaseAssetResponse>(
+        return await _assetOperationExecutor.ExecuteAsync<DisposeServiceCaseAssetResponse>(
                 assetIds: new[] { assetId },
                 operation: token => HandleCoreAsync(
                     serviceCaseId,
@@ -189,12 +197,12 @@ public sealed class DisposeServiceCaseAssetHandler
     /// <param name="serviceCaseId">
     /// The unique identifier of the service case.
     /// </param>
-    /// <param name="request">
-    /// The request containing the mandatory disposal reason.
-    /// </param>
     /// <param name="lockedAssetId">
     /// The unique identifier of the asset that has been locked
     /// for exclusive access during the operation.
+    /// </param>
+    /// <param name="request">
+    /// The request containing the mandatory disposal reason.
     /// </param>
     /// <param name="cancellationToken">
     /// The token used to cancel the operation.
@@ -242,39 +250,29 @@ public sealed class DisposeServiceCaseAssetHandler
 
         EnsureCanDispose(currentUser);
 
-        var serviceCase =
-    await _serviceCaseRepository.GetForUpdateByIdAsync(
-        serviceCaseId,
-        cancellationToken)
-    ?? throw new ServiceCaseNotFoundException(serviceCaseId);
+        var serviceCase = await _serviceCaseRepository.GetForUpdateByIdAsync(serviceCaseId, cancellationToken)
+            ?? throw new ServiceCaseNotFoundException(serviceCaseId);
 
-    if (serviceCase.AssetId != lockedAssetId)
-    {
-        throw new ServiceCaseStateConflictException(
-            serviceCaseId,
-            "The asset associated with the service case changed " +
-            "before the operation acquired its lock. " +
-            "Reload the service case and try again.");
-    }
+        if (serviceCase.AssetId != lockedAssetId)
+        {
+            throw new ServiceCaseStateConflictException(serviceCaseId,
+                "The asset associated with the service case changed before the operation acquired its lock. Reload the service case and try again.");
+        }
 
-    var asset =
-        await _assetRepository.GetForUpdateByIdAsync(
-            lockedAssetId,
-            cancellationToken)
-        ?? throw new AssetNotFoundException(lockedAssetId);
+        var asset = await _assetRepository.GetForUpdateByIdAsync(lockedAssetId, cancellationToken)
+            ?? throw new AssetNotFoundException(lockedAssetId);
 
         var hasActivePackage = await _packageRepository.HasActivePackageForAssetAsync(asset.Id, cancellationToken);
 
         if (hasActivePackage)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCase.Id,
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
                 "An asset included in an active package cannot be disposed of. " +
                 "Remove it from the package or cancel the package before dispatch. " +
                 "For a package in transit, receive the package first.");
         }
 
-ValidateConsistentState(serviceCase, asset);
+        ValidateConsistentState(serviceCase, asset);
 
         var previousServiceCaseStatus = serviceCase.Status;
         var previousAssetStatus = asset.AssetStatus;
@@ -308,8 +306,26 @@ ValidateConsistentState(serviceCase, asset);
             currentUser,
             disposedAtUtc);
 
+        // Register the local service case event.
         await _serviceCaseRepository.AddEventAsync(serviceCaseEvent, cancellationToken);
 
+        // Build the Hungarian HTML request note.
+        var noteDescription = BuildServiceDeskNoteDescription(
+            serviceCase,
+            serviceCaseEvent,
+            asset,
+            reason);
+
+        // Register the request note for background synchronization.
+        var noteOutbox = ServiceDeskNoteOutbox.Create(
+            serviceCaseId: serviceCase.Id,
+            serviceCaseEventId: serviceCaseEvent.Id,
+            description: noteDescription,
+            createdAtUtc: disposedAtUtc);
+
+        await _noteOutboxRepository.AddAsync(noteOutbox, cancellationToken);
+
+        // Preserve the existing asset history entries.
         await _assetHistoryRepository.AddRangeAsync(histories, cancellationToken);
 
         // Persist all tracked changes in a single save.
@@ -420,12 +436,14 @@ ValidateConsistentState(serviceCase, asset);
 
         if (serviceCase.AssetId != asset.Id)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "The service case and asset relationship is invalid.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "The service case and asset relationship is invalid.");
         }
 
         if (!serviceCase.IsActive)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "Only an active service case can be used for asset disposal.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "Only an active service case can be used for asset disposal.");
         }
 
         var expectedAssetStatus = serviceCase.Status switch
@@ -435,22 +453,27 @@ ValidateConsistentState(serviceCase, asset);
             ServiceCaseStatus.InExternalService => AssetStatus.In_Service,
             ServiceCaseStatus.AwaitingReturn => AssetStatus.In_HQ,
 
-            _ => throw new ServiceCaseStateConflictException(serviceCase.Id, "The current service case status does not allow asset disposal.")
+            _ => throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "The current service case status does not allow asset disposal.")
         };
 
         if (asset.AssetStatus != expectedAssetStatus)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "The asset status is inconsistent with the service case status for disposal.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "The asset status is inconsistent with the service case status for disposal.");
         }
 
-        if (serviceCase.OriginStoreId.HasValue && (serviceCase.OriginStoreId.Value == Guid.Empty || asset.AssignedStoreId != serviceCase.OriginStoreId.Value))
+        if (serviceCase.OriginStoreId.HasValue &&
+            (serviceCase.OriginStoreId.Value == Guid.Empty || asset.AssignedStoreId != serviceCase.OriginStoreId.Value))
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "The asset is not assigned to a valid service case origin store.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "The asset is not assigned to a valid service case origin store.");
         }
 
         if (asset.AssignedEmployeeNumber is not null || asset.AssignedUserId.HasValue)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "The asset must be returned from employee use and unassigned from its application user before disposal.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "The asset must be returned from employee use and unassigned from its application user before disposal.");
         }
     }
 
@@ -508,5 +531,73 @@ ValidateConsistentState(serviceCase, asset);
                 changedByUserName: performedBy.DisplayName,
                 changedAtUtc: disposedAtUtc)
         ];
+    }
+
+    /// <summary>
+    /// Builds the Hungarian HTML description for a
+    /// ServiceDesk request note about asset disposal.
+    /// </summary>
+    private static string BuildServiceDeskNoteDescription(
+        ServiceCase serviceCase,
+        ServiceCaseEvent serviceCaseEvent,
+        Asset asset,
+        string reason)
+    {
+        ArgumentNullException.ThrowIfNull(serviceCase);
+        ArgumentNullException.ThrowIfNull(serviceCaseEvent);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        static string Encode(string? value)
+        {
+            return System.Net.WebUtility.HtmlEncode(
+                string.IsNullOrWhiteSpace(value)
+                    ? "Nincs megadva"
+                    : value);
+        }
+
+        var encodedReason = Encode(reason)
+            .Replace("\r\n", "\n")
+            .Replace("\n", "<br>");
+
+        return $"""
+            <div>
+                <h3>Eszköz selejtezve</h3>
+
+                <p>
+                    <strong>Szervizügy:</strong>
+                    {Encode(serviceCase.CaseNumber)}
+                </p>
+
+                <p>
+                    <strong>Eszköz neve:</strong>
+                    {Encode(asset.AssetName)}
+                </p>
+
+                <p>
+                    <strong>Gyári szám:</strong>
+                    {Encode(asset.SerialNumber)}
+                </p>
+
+                <p>
+                    <strong>Korábbi állapot:</strong>
+                    {Encode(serviceCaseEvent.PreviousStatus?.ToString())}
+                </p>
+
+                <p>
+                    <strong>Új állapot:</strong>
+                    {Encode(serviceCaseEvent.NewStatus.ToString())}
+                </p>
+
+                <p>
+                    <strong>Műveletet végrehajtotta:</strong>
+                    {Encode(serviceCaseEvent.PerformedByUserName)}
+                </p>
+
+                <p>
+                    <strong>Selejtezés indoka:</strong><br>
+                    {encodedReason}
+                </p>
+            </div>
+            """;
     }
 }

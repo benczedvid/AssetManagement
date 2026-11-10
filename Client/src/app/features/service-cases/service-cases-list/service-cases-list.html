@@ -696,6 +696,24 @@
                 </dd>
               </div>
 
+              <div>
+                <dt>ServiceDesk Plus hibajegy</dt>
+
+                <dd>
+                  @if (item.serviceDeskRequestId) {
+                    <a  [href]="getServiceDeskRequestUrl(item.serviceDeskRequestId)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="service-desk-request-link">
+                      {{ item.serviceDeskRequestId }}
+                      <mat-icon>open_in_new</mat-icon>
+                    </a>
+                  } @else {
+                    <span class="secondary-text">Szinkronizációra vár</span>
+                  }
+                </dd>
+              </div>
+
               @if (getAssetById(item.assetId); as asset) {
                 <div>
                   <dt>Eszköz</dt>

@@ -20,15 +20,7 @@ namespace AssetManagement.Domain.Entities.ServiceCases
         HandedOverToExternalService = 14, // The service case has been handed over to an external service provider for repair or further inspection.
         ReceivedByExternalService = 15, // The service case has been received by an external service provider for repair or further inspection.
         DispatchedToOriginStore = 16, // The service case has been dispatched back to the origin store after repair or further inspection.
-        /// <summary>
-        /// The asset was disposed of as part of the service case workflow.
-        /// </summary>
-        /// <remarks>
-        /// The disposal reason is recorded in the event comment.
-        /// The service case is resolved without requiring the asset
-        /// to be returned to its origin store or headquarters.
-        /// Closing the service case remains a separate operation.
-        /// </remarks>
-        AssetDisposed = 17
+        AssetDisposed = 17,
+        PackageCreated = 18
     }
 }

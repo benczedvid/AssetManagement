@@ -1,0 +1,288 @@
+<div class="service-desk-dashboard">
+  <!-- Header -->
+  <header class="page-header">
+    <div>
+      <div class="header-eyebrow">
+        <mat-icon>sync_alt</mat-icon>
+        <span>INTEGRÁCIÓK</span>
+      </div>
+      <h1>ServiceDesk Plus</h1>
+      <p>Hibajegyek és megjegyzések szinkronizációjának felügyelete, hibák kezelése és helyreállítás.</p>
+    </div>
+    <button mat-stroked-button type="button" [disabled]="loading()" (click)="loadOperations()">
+      <mat-icon>refresh</mat-icon>
+      Frissítés
+    </button>
+  </header>
+
+  <!-- Statistics -->
+  <section class="stats-grid">
+    <mat-card class="stat-card">
+      <mat-icon>list_alt</mat-icon>
+      <div>
+        <span>Összes művelet</span>
+        <strong>{{ totalCount() }}</strong>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>schedule</mat-icon>
+      <div>
+        <span>Várakozik</span>
+        <strong>{{ pendingCount() }}</strong>
+      </div>
+    </mat-card>
+
+    <mat-card class="stat-card">
+      <mat-icon>sync</mat-icon>
+      <div>
+        <span>Feldolgozás alatt</span>
+        <strong>{{ processingCount() }}</strong>
+      </div>
+    </mat-card>
+
+    <mat-card class="stat-card success">
+      <mat-icon>check_circle</mat-icon>
+      <div>
+        <span>Sikeres</span>
+        <strong>{{ completedCount() }}</strong>
+      </div>
+    </mat-card>
+
+    <mat-card class="stat-card danger">
+      <mat-icon>error</mat-icon>
+      <div>
+        <span>Sikertelen</span>
+        <strong>{{ failedCount() }}</strong>
+      </div>
+    </mat-card>
+
+    <mat-card class="stat-card warning">
+      <mat-icon>warning</mat-icon>
+      <div>
+        <span>Helyreállítást igényel</span>
+        <strong>{{ reconciliationCount() }}</strong>
+      </div>
+    </mat-card>
+  </section>
+
+  <!-- Operations -->
+  <mat-card class="operations-card">
+    <div class="section-header">
+      <div>
+        <h2>Szinkronizációs műveletek</h2>
+        <p>A ServiceDesk-integráció feldolgozási előzményei.</p>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <mat-form-field appearance="fill">
+        <mat-label>Keresés</mat-label>
+        <input matInput [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" placeholder="Szervizügy vagy művelet azonosítója">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill">
+        <mat-label>Művelet típusa</mat-label>
+
+        <mat-select  [ngModel]="selectedOperationType()" (ngModelChange)="selectedOperationType.set($event)">
+          @for (type of operationTypes; track type.value) {
+            <mat-option [value]="type.value">
+              {{ type.label }}
+            </mat-option>
+          }
+
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill">
+        <mat-label>Állapot</mat-label>
+        <mat-select [ngModel]="selectedStatus()" (ngModelChange)="selectedStatus.set($event)">
+
+          @for (status of statuses; track status.value) {
+            <mat-option [value]="status.value">
+              {{ status.label }}
+            </mat-option>
+          }
+
+        </mat-select>
+      </mat-form-field>
+
+    </div>
+
+    <!-- Loading -->
+    @if (loading()) {
+      <div class="loading-state">
+        <mat-spinner diameter="36"></mat-spinner>
+        <p>Szinkronizációs műveletek betöltése...</p>
+      </div>
+    } @else {
+
+      <div class="table-container">
+        <table mat-table  [dataSource]="filteredOperations()" class="operations-table">
+
+          <!-- Operation type -->
+          <ng-container matColumnDef="operationType">
+            <th mat-header-cell *matHeaderCellDef>Művelet</th>
+
+            <td mat-cell *matCellDef="let operation">
+              {{ getOperationLabel(operation.operationType) }}
+            </td>
+          </ng-container>
+
+          <!-- Status -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Állapot</th>
+
+            <td mat-cell *matCellDef="let operation">
+              <span class="status-badge"
+                [class.completed]="operation.status === 'Completed'"
+                [class.failed]="operation.status === 'Failed'"
+                [class.pending]="operation.status === 'Pending'"
+                [class.processing]="operation.status === 'Processing'"
+                [class.reconciliation]="operation.status === 'RequiresReconciliation'">
+
+                {{ getStatusLabel(operation.status) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- ServiceCase -->
+          <ng-container matColumnDef="serviceCaseId">
+            <th mat-header-cell *matHeaderCellDef>Ügyszám</th>
+
+            <td mat-cell *matCellDef="let operation">
+              {{ operation.serviceCaseNumber }}
+            </td>
+          </ng-container>
+
+          <!-- Created -->
+          <ng-container matColumnDef="createdAtUtc">
+            <th mat-header-cell *matHeaderCellDef>Létrehozva</th>
+
+            <td mat-cell *matCellDef="let operation">
+              {{ operation.createdAtUtc | date:'yyyy. MM. dd. HH:mm' }}
+            </td>
+          </ng-container>
+
+          <!-- Actions -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Műveletek</th>
+            <td mat-cell *matCellDef="let operation">
+              @if (canReconcile(operation)) {
+                <button mat-stroked-button type="button" (click)="openReconciliation(operation)">
+                  <mat-icon>build_circle</mat-icon>
+                  Helyreállítás
+                </button>
+              }
+
+              @if (operation.operationType === 'NoteCreation' && operation.status === 'RequiresReconciliation') {
+                <span class="status-badge reconciliation">
+                  Manuális ellenőrzés szükséges
+                </span>
+              }
+
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+
+        </table>
+
+      </div>
+
+      <!-- Empty state -->
+      @if (filteredOperations().length === 0) {
+        <div class="empty-state">
+          <mat-icon>inbox</mat-icon>
+          <h3>Nincs megjeleníthető művelet</h3>
+          <p>A megadott szűrőknek nincs megfelelő találat.</p>
+        </div>
+      }
+
+    }
+
+  </mat-card>
+
+  <!-- Reconciliation panel -->
+  @if (selectedOperation(); as operation) {
+
+    <div class="reconciliation-overlay">
+      <mat-card class="reconciliation-panel">
+        <div class="section-header">
+          <div>
+            <h2>Adminisztrátori helyreállítás</h2>
+            <p>{{ getOperationLabel(operation.operationType) }}</p>
+          </div>
+
+          <button mat-icon-button type="button"
+            [disabled]="reconciling()"
+            (click)="closeReconciliation()">
+
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="reconciliation-details">
+
+          <p>
+            <strong>Outbox azonosító:</strong>
+            {{ operation.outboxId }}
+          </p>
+
+          <p>
+            <strong>Feldolgozási azonosító:</strong>
+            {{ operation.processingOperationId }}
+          </p>
+
+        </div>
+
+        <mat-form-field appearance="fill">
+          <mat-label>Ellenőrzés eredménye</mat-label>
+
+          <mat-select [(ngModel)]="reconciliationOutcome">
+            <mat-option [value]="1">
+              A külső művelet sikeres volt
+            </mat-option>
+
+            <mat-option [value]="2">
+              A külső művelet nem történt meg
+            </mat-option>
+
+          </mat-select>
+        </mat-form-field>
+
+        @if (operation.operationType === 'RequestCreation' && reconciliationOutcome === 1) {
+          <mat-form-field appearance="fill">
+            <mat-label>ServiceDesk hibajegyazonosító</mat-label>
+            <input matInput [(ngModel)]="verifiedRequestId">
+          </mat-form-field>
+        }
+
+        <mat-form-field appearance="fill">
+          <mat-label>Ellenőrzési megjegyzés</mat-label>
+          <textarea matInput rows="4" maxlength="1000" [(ngModel)]="verificationComment">
+          </textarea>
+        </mat-form-field>
+
+        <div class="form-actions">
+          <button mat-button type="button" [disabled]="reconciling()" (click)="closeReconciliation()">
+            Mégse
+          </button>
+
+          <button mat-flat-button type="button" [disabled]="reconciling()" (click)="submitReconciliation()">
+            @if (reconciling()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              <mat-icon>check</mat-icon>
+            }
+
+            Helyreállítás véglegesítése
+          </button>
+
+        </div>
+      </mat-card>
+    </div>
+  }
+</div>

@@ -520,6 +520,30 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
+                    b.Property<Guid?>("ServiceDeskOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ServiceDeskRequestId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ServiceDeskSyncCompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ServiceDeskSyncError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ServiceDeskSyncStartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ServiceDeskSyncStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("NotStarted");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -545,6 +569,10 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OriginStoreId")
                         .HasDatabaseName("IX_ServiceCases_OriginStoreId");
+
+                    b.HasIndex("ServiceDeskRequestId")
+                        .IsUnique()
+                        .HasFilter("[ServiceDeskRequestId] IS NOT NULL");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_ServiceCases_Status");
@@ -610,6 +638,234 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_ServiceCaseEvents_ServiceCaseId_OccurredAtUtc");
 
                     b.ToTable("ServiceCaseEvents", (string)null);
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.ServiceDesk.ServiceDeskNoteOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ProcessedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ProcessingOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ProcessingStartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ServiceCaseEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ServiceCaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ServiceDeskNoteId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceCaseEventId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ServiceDeskNoteOutbox_ServiceCaseEventId");
+
+                    b.HasIndex("ServiceCaseId")
+                        .HasDatabaseName("IX_ServiceDeskNoteOutbox_ServiceCaseId");
+
+                    b.HasIndex("ServiceDeskNoteId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ServiceDeskNoteOutbox_ServiceDeskNoteId")
+                        .HasFilter("[ServiceDeskNoteId] IS NOT NULL");
+
+                    b.HasIndex("Status", "CreatedAtUtc")
+                        .HasDatabaseName("IX_ServiceDeskNoteOutbox_Status_CreatedAtUtc");
+
+                    b.HasIndex("Status", "ProcessingStartedAtUtc")
+                        .HasDatabaseName("IX_ServiceDeskNoteOutbox_Status_ProcessingStartedAtUtc");
+
+                    b.ToTable("ServiceDeskNoteOutbox", (string)null);
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.ServiceDesk.ServiceDeskReconciliationAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExternalIdentifier")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Operation")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OutboxId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProcessingOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ServiceCaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("VerifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("VerifiedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VerifiedByUserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ServiceDeskReconciliationAudits");
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.ServiceDesk.ServiceDeskRequestClosureOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ProcessedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ProcessingOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ProcessingStartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ServiceCaseEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ServiceCaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceCaseEventId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ServiceDeskRequestClosureOutbox_ServiceCaseEventId");
+
+                    b.HasIndex("ServiceCaseId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ServiceDeskRequestClosureOutbox_ServiceCaseId");
+
+                    b.HasIndex("Status", "CreatedAtUtc")
+                        .HasDatabaseName("IX_ServiceDeskRequestClosureOutbox_Status_CreatedAtUtc");
+
+                    b.HasIndex("Status", "ProcessingStartedAtUtc")
+                        .HasDatabaseName("IX_ServiceDeskRequestClosureOutbox_Status_ProcessingStartedAtUtc");
+
+                    b.ToTable("ServiceDeskRequestClosureOutbox", (string)null);
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.ServiceDesk.ServiceDeskRequestOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ProcessedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ProcessingOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ProcessingStartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ServiceCaseEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ServiceCaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ServiceDeskRequestId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceCaseEventId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ServiceDeskRequestOutbox_ServiceCaseEventId");
+
+                    b.HasIndex("ServiceCaseId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ServiceDeskRequestOutbox_ServiceCaseId");
+
+                    b.HasIndex("ServiceDeskRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ServiceDeskRequestOutbox_ServiceDeskRequestId")
+                        .HasFilter("[ServiceDeskRequestId] IS NOT NULL");
+
+                    b.HasIndex("Status", "CreatedAtUtc")
+                        .HasDatabaseName("IX_ServiceDeskRequestOutbox_Status_CreatedAtUtc");
+
+                    b.HasIndex("Status", "ProcessingStartedAtUtc")
+                        .HasDatabaseName("IX_ServiceDeskRequestOutbox_Status_ProcessingStartedAtUtc");
+
+                    b.ToTable("ServiceDeskRequestOutbox", (string)null);
                 });
 
             modelBuilder.Entity("AssetManagement.Domain.Entities.Stores.Store", b =>
@@ -889,7 +1145,7 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CancelledByUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("AssetManagement.Domain.Entities.Users.ApplicationUser", null)
+                    b.HasOne("AssetManagement.Domain.Entities.Users.ApplicationUser", "CourierUser")
                         .WithMany()
                         .HasForeignKey("CourierUserId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -900,7 +1156,7 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("AssetManagement.Domain.Entities.Stores.Store", null)
+                    b.HasOne("AssetManagement.Domain.Entities.Stores.Store", "DestinationStore")
                         .WithMany()
                         .HasForeignKey("DestinationStoreId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -916,11 +1172,17 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ReceivedByUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("AssetManagement.Domain.Entities.Stores.Store", null)
+                    b.HasOne("AssetManagement.Domain.Entities.Stores.Store", "SourceStore")
                         .WithMany()
                         .HasForeignKey("SourceStoreId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("CourierUser");
+
+                    b.Navigation("DestinationStore");
+
+                    b.Navigation("SourceStore");
                 });
 
             modelBuilder.Entity("AssetManagement.Domain.Entities.Packages.PackageEvent", b =>
@@ -1011,6 +1273,51 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ServiceCaseId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.ServiceDesk.ServiceDeskNoteOutbox", b =>
+                {
+                    b.HasOne("AssetManagement.Domain.Entities.ServiceCases.ServiceCaseEvent", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceCaseEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AssetManagement.Domain.Entities.ServiceCases.ServiceCase", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.ServiceDesk.ServiceDeskRequestClosureOutbox", b =>
+                {
+                    b.HasOne("AssetManagement.Domain.Entities.ServiceCases.ServiceCaseEvent", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceCaseEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AssetManagement.Domain.Entities.ServiceCases.ServiceCase", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.ServiceDesk.ServiceDeskRequestOutbox", b =>
+                {
+                    b.HasOne("AssetManagement.Domain.Entities.ServiceCases.ServiceCaseEvent", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceCaseEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AssetManagement.Domain.Entities.ServiceCases.ServiceCase", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

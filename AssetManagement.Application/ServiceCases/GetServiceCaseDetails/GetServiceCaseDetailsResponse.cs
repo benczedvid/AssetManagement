@@ -36,6 +36,10 @@ namespace AssetManagement.Application.ServiceCases.GetServiceCaseDetails;
 /// <param name="AvailableActions">
 /// The actions currently available to the authenticated user based on the service case state and the user's permissions.
 /// </param>
+/// /// <param name="ServiceDeskRequestId">
+/// The external ServiceDesk Plus request identifier,
+/// when synchronization has completed.
+/// </param>
 public sealed record GetServiceCaseDetailsResponse(
     Guid Id,
     string CaseNumber,
@@ -53,4 +57,5 @@ public sealed record GetServiceCaseDetailsResponse(
     Guid? ClosedByUserId,
     DateTime? ClosedAtUtc,
     IReadOnlyList<ServiceCaseEventResponse> Events,
-    IReadOnlyList<string> AvailableActions);
+    IReadOnlyList<string> AvailableActions,
+    string? ServiceDeskRequestId);

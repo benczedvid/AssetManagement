@@ -21,17 +21,43 @@ export class NavbarComponent {
   readonly canViewDashboard = computed(() => this.currentUserApi.canViewDashboard());
   readonly canViewAssets = computed(() => this.currentUserApi.canViewAssets());
   readonly canViewEmployees = computed(() => this.currentUserApi.canViewEmployees());
-  readonly canManageAssets = computed(() => this.currentUserApi.canManageAssets());
-  readonly canManageStores = computed(() => this.currentUserApi.canManageStores());
-  readonly canManageUsers = computed(() => this.currentUserApi.canManageUsers());
-  readonly canViewVendors = computed(() => this.currentUserApi.canManageAssets());
+
+  readonly canManageAssets = computed(() =>
+    this.currentUserApi.canManageAssets()
+  );
+
+  readonly canManageStores = computed(() =>
+    this.currentUserApi.canManageStores()
+  );
+
+  readonly canManageUsers = computed(() =>
+    this.currentUserApi.canManageUsers()
+  );
+
+  readonly canViewVendors = computed(() =>
+    this.currentUserApi.canManageAssets()
+  );
+
   readonly canViewServiceCases = computed(() => {
     const currentUser = this.currentUserApi.currentUser();
 
-    return currentUser?.isActive === true
-      && this.currentUserApi.hasAnyPermission([
+    return currentUser?.isActive === true &&
+      this.currentUserApi.hasAnyPermission([
         APPLICATION_PERMISSIONS.serviceCasesReadAll,
         APPLICATION_PERMISSIONS.serviceCasesReadOwnStore,
+      ]);
+  });
+
+  /**
+   * Determines whether the current user can access
+   * the application settings module.
+   */
+  readonly canViewSettings = computed(() => {
+    const currentUser = this.currentUserApi.currentUser();
+
+    return currentUser?.isActive === true &&
+      this.currentUserApi.hasAnyPermission([
+        APPLICATION_PERMISSIONS.serviceCasesManageAll,
       ]);
   });
 
@@ -42,7 +68,8 @@ export class NavbarComponent {
 
     this.isLogoutInProgress.set(true);
 
-    const activeAccount = this.authService.instance.getActiveAccount();
+    const activeAccount =
+      this.authService.instance.getActiveAccount();
 
     this.currentUserApi.clear();
 
@@ -50,7 +77,10 @@ export class NavbarComponent {
       account: activeAccount ?? undefined,
     }).subscribe({
       error: error => {
-        console.error('The user could not be signed out.', error);
+        console.error(
+          'The user could not be signed out.',
+          error
+        );
 
         this.isLogoutInProgress.set(false);
       },

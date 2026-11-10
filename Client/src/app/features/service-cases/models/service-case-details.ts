@@ -9,6 +9,7 @@ export interface ServiceCaseDetails extends ServiceCaseListItem {
   readonly closedByUserId: string | null;
   readonly events: readonly ServiceCaseEvent[];
   readonly availableActions: readonly ServiceCaseAction[];
+  readonly serviceDeskRequestId: string | null;
 }
 
 export function hasServiceCaseAction(serviceCase: ServiceCaseDetails, action: ServiceCaseAction): boolean {

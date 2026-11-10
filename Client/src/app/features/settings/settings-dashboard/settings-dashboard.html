@@ -1,0 +1,131 @@
+<div class="settings-dashboard">
+
+  <!-- Page header -->
+  <header class="mb-8">
+    <div class="mb-3 flex items-center gap-2">
+      <span class="material-symbols-outlined text-[22px] text-[#006AB2]" aria-hidden="true">
+        settings
+      </span>
+
+      <span class="text-xs font-bold uppercase tracking-[0.16em] text-[#006AB2]">
+        RENDSZERBEÁLLÍTÁSOK
+      </span>
+
+    </div>
+
+    <h1 class="text-2xl font-bold tracking-tight text-[#002B51] sm:text-3xl">
+      Beállítások
+    </h1>
+
+    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+      Az alkalmazás beállításainak és külső rendszerintegrációinak kezelése.
+    </p>
+
+  </header>
+
+  <!-- Integrations section -->
+  <section aria-labelledby="integrations-heading">
+
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 id="integrations-heading" class="text-lg font-bold text-[#002B51]">
+          Integrációk
+        </h2>
+
+        <p class="mt-1 text-sm text-slate-500">
+          Az alkalmazáshoz kapcsolódó külső rendszerek.
+        </p>
+
+      </div>
+
+      <span class="inline-flex items-center gap-2
+               rounded-full border border-slate-200
+               bg-white px-3 py-1.5
+               text-xs font-semibold text-slate-600">
+
+        <span class="material-symbols-outlined text-[17px]" aria-hidden="true">
+          hub
+        </span>
+
+        Külső rendszerek
+
+      </span>
+
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+
+      <!-- ServiceDesk Plus -->
+      <a routerLink="/settings/service-desk" class="settings-card group" aria-label="ServiceDesk Plus integráció kezelése">
+        <div class="flex items-start justify-between gap-4">
+          <div class="settings-card-icon">
+            <span class="material-symbols-outlined text-[30px]" aria-hidden="true">
+              sync_alt
+            </span>
+
+          </div>
+
+          <span class="material-symbols-outlined
+                   text-[22px] text-slate-400
+                   transition-transform duration-200
+                   group-hover:translate-x-1
+                   group-hover:text-[#006AB2]"
+            aria-hidden="true">
+            arrow_forward
+          </span>
+
+        </div>
+
+        <div class="mt-5">
+          <h3 class="text-lg font-bold text-[#002B51]">
+            ServiceDesk Plus
+          </h3>
+
+          <p class="mt-2 text-sm leading-6 text-slate-600">
+            ServiceDesk-hibajegyek és feladatok
+            szinkronizációjának felügyelete,
+            hibák kezelése és helyreállítási
+            előzmények megtekintése.
+          </p>
+
+        </div>
+
+        <div class="mt-auto pt-6">
+          <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+            <span class="text-sm font-semibold text-[#006AB2]">
+              Integráció kezelése
+            </span>
+
+            <span class="material-symbols-outlined text-[20px] text-[#006AB2]" aria-hidden="true">
+              chevron_right
+            </span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- Information section -->
+  <section class="mt-8 rounded-xl border border-blue-100 bg-blue-50 p-5 sm:p-6" aria-label="Beállítások tájékoztató">
+    <div class="flex items-start gap-4">
+      <span class="material-symbols-outlined shrink-0 text-[24px] text-[#006AB2]" aria-hidden="true">
+        info
+      </span>
+
+      <div>
+        <h2 class="text-sm font-bold text-[#002B51]">
+          Integrációk felügyelete
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-slate-600">
+          A külső rendszerekkel történő szinkronizáció
+          automatikusan, a háttérben zajlik.
+
+          A Beállítások menüpontban megtekinthetők
+          a szinkronizációs műveletek, valamint
+          kezelhetők az esetleges hibák és
+          egyeztetést igénylő műveletek.
+        </p>
+      </div>
+    </div>
+  </section>
+</div>

@@ -8,6 +8,8 @@ using AssetManagement.Application.Common.Interfaces.Users;
 using AssetManagement.Application.ServiceCases.Exceptions;
 using AssetManagement.Domain.Entities.Assets;
 using AssetManagement.Domain.Entities.ServiceCases;
+using AssetManagement.Application.Common.Interfaces.ServiceDesk;
+using AssetManagement.Domain.Entities.ServiceDesk;
 
 namespace AssetManagement.Application.ServiceCases.OpenServiceCase;
 
@@ -22,6 +24,7 @@ public sealed class OpenServiceCaseHandler
     private readonly ICaseNumberGenerator _caseNumberGenerator;
     private readonly IPackageRepository _packageRepository;
     private readonly IAssetOperationExecutor _assetOperationExecutor;
+    private readonly IServiceDeskRequestOutboxRepository _serviceDeskRequestOutboxRepository;
 
     public OpenServiceCaseHandler(
         IAssetRepository assetRepository,
@@ -30,7 +33,8 @@ public sealed class OpenServiceCaseHandler
         IUserAccessScopeResolver userAccessScopeResolver,
         ICaseNumberGenerator caseNumberGenerator,
         IPackageRepository packageRepository,
-        IAssetOperationExecutor assetOperationExecutor)
+        IAssetOperationExecutor assetOperationExecutor,
+        IServiceDeskRequestOutboxRepository serviceDeskRequestOutboxRepository)
     {
         ArgumentNullException.ThrowIfNull(assetRepository);
         ArgumentNullException.ThrowIfNull(serviceCaseRepository);
@@ -39,6 +43,7 @@ public sealed class OpenServiceCaseHandler
         ArgumentNullException.ThrowIfNull(caseNumberGenerator);
         ArgumentNullException.ThrowIfNull(packageRepository);
         ArgumentNullException.ThrowIfNull(assetOperationExecutor);
+        ArgumentNullException.ThrowIfNull(serviceDeskRequestOutboxRepository);
 
         _assetRepository = assetRepository;
         _serviceCaseRepository = serviceCaseRepository;
@@ -47,6 +52,7 @@ public sealed class OpenServiceCaseHandler
         _caseNumberGenerator = caseNumberGenerator;
         _packageRepository = packageRepository;
         _assetOperationExecutor = assetOperationExecutor;
+        _serviceDeskRequestOutboxRepository = serviceDeskRequestOutboxRepository;
     }
     /// <summary>
     /// Opens a service case within a transaction protected
@@ -162,8 +168,24 @@ public sealed class OpenServiceCaseHandler
             occurredAtUtc: nowUtc);
 
         await _serviceCaseRepository.AddAsync(serviceCase, cancellationToken);
+
         await _serviceCaseRepository.AddEventAsync(serviceCaseCreatedEvent, cancellationToken);
 
+        // Register automatic ServiceDesk request creation.
+        var serviceDeskDescription = BuildServiceDeskDescription(
+            asset,
+            serviceCase);
+
+        var requestOutbox = ServiceDeskRequestOutbox.Create(
+            serviceCaseId: serviceCase.Id,
+            serviceCaseEventId: serviceCaseCreatedEvent.Id,
+            subject: $"Eszköz szervizügy: {serviceCase.CaseNumber}",
+            description: serviceDeskDescription,
+            createdAtUtc: nowUtc);
+
+        await _serviceDeskRequestOutboxRepository.AddAsync(requestOutbox, cancellationToken);
+
+        // Persist all changes in the same transaction.
         await _serviceCaseRepository.SaveChangesAsync(cancellationToken);
 
         return new OpenServiceCaseResponse(
@@ -255,5 +277,49 @@ public sealed class OpenServiceCaseHandler
                 "If a service case is required, open it before " +
                 "adding the asset to a package.");
         }
+    }
+
+    private static string BuildServiceDeskDescription(
+        Asset asset,
+        ServiceCase serviceCase)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        ArgumentNullException.ThrowIfNull(serviceCase);
+
+        static string Encode(string? value)
+        {
+            return System.Net.WebUtility.HtmlEncode(
+                string.IsNullOrWhiteSpace(value)
+                    ? "Nincs megadva"
+                    : value);
+        }
+
+        var issueType = serviceCase.IssueType.ToString();
+
+        if (!string.IsNullOrWhiteSpace(serviceCase.OtherIssueDescription))
+        {
+            issueType += $" - {serviceCase.OtherIssueDescription}";
+        }
+
+        var description = Encode(serviceCase.Description)
+            .Replace("\r\n", "\n")
+            .Replace("\n", "<br>");
+
+        return $"""
+            <div>
+                <h3>Eszköz adatai</h3>
+
+                <p><strong>Eszköz neve:</strong> {Encode(asset.AssetName)}</p>
+                <p><strong>Gyári szám:</strong> {Encode(asset.SerialNumber)}</p>
+                <p><strong>MAC-cím:</strong> {Encode(asset.MacAddress)}</p>
+
+                <hr>
+
+                <h3>Hiba adatai</h3>
+
+                <p><strong>Hiba típusa:</strong> {Encode(issueType)}</p>
+                <p><strong>Hiba leírása:</strong><br>{description}</p>
+            </div>
+            """;
     }
 }

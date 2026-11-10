@@ -1795,3 +1795,286 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    ALTER TABLE [ServiceCases] ADD [ServiceDeskOperationId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    ALTER TABLE [ServiceCases] ADD [ServiceDeskRequestId] nvarchar(100) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    ALTER TABLE [ServiceCases] ADD [ServiceDeskSyncCompletedAtUtc] datetime2 NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    ALTER TABLE [ServiceCases] ADD [ServiceDeskSyncError] nvarchar(1000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    ALTER TABLE [ServiceCases] ADD [ServiceDeskSyncStartedAtUtc] datetime2 NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    ALTER TABLE [ServiceCases] ADD [ServiceDeskSyncStatus] nvarchar(50) NOT NULL DEFAULT N'NotStarted';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE TABLE [ServiceDeskReconciliationAudits] (
+        [Id] uniqueidentifier NOT NULL,
+        [Operation] int NOT NULL,
+        [OutboxId] uniqueidentifier NOT NULL,
+        [ServiceCaseId] uniqueidentifier NOT NULL,
+        [ProcessingOperationId] uniqueidentifier NOT NULL,
+        [Outcome] int NOT NULL,
+        [ExternalIdentifier] nvarchar(max) NULL,
+        [VerifiedByUserId] uniqueidentifier NOT NULL,
+        [VerifiedByUserName] nvarchar(max) NOT NULL,
+        [VerifiedAtUtc] datetime2 NOT NULL,
+        [Comment] nvarchar(max) NOT NULL,
+        CONSTRAINT [PK_ServiceDeskReconciliationAudits] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE TABLE [ServiceDeskRequestClosureOutbox] (
+        [Id] uniqueidentifier NOT NULL,
+        [ServiceCaseId] uniqueidentifier NOT NULL,
+        [ServiceCaseEventId] uniqueidentifier NOT NULL,
+        [Status] nvarchar(50) NOT NULL,
+        [ProcessingOperationId] uniqueidentifier NULL,
+        [CreatedAtUtc] datetime2 NOT NULL,
+        [ProcessingStartedAtUtc] datetime2 NULL,
+        [ProcessedAtUtc] datetime2 NULL,
+        [Error] nvarchar(1000) NULL,
+        CONSTRAINT [PK_ServiceDeskRequestClosureOutbox] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_ServiceDeskRequestClosureOutbox_ServiceCaseEvents_ServiceCaseEventId] FOREIGN KEY ([ServiceCaseEventId]) REFERENCES [ServiceCaseEvents] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_ServiceDeskRequestClosureOutbox_ServiceCases_ServiceCaseId] FOREIGN KEY ([ServiceCaseId]) REFERENCES [ServiceCases] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE TABLE [ServiceDeskRequestOutbox] (
+        [Id] uniqueidentifier NOT NULL,
+        [ServiceCaseId] uniqueidentifier NOT NULL,
+        [ServiceCaseEventId] uniqueidentifier NOT NULL,
+        [Subject] nvarchar(250) NOT NULL,
+        [Description] nvarchar(2000) NOT NULL,
+        [ServiceDeskRequestId] nvarchar(100) NULL,
+        [Status] nvarchar(50) NOT NULL,
+        [ProcessingOperationId] uniqueidentifier NULL,
+        [CreatedAtUtc] datetime2 NOT NULL,
+        [ProcessingStartedAtUtc] datetime2 NULL,
+        [ProcessedAtUtc] datetime2 NULL,
+        [Error] nvarchar(1000) NULL,
+        CONSTRAINT [PK_ServiceDeskRequestOutbox] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_ServiceDeskRequestOutbox_ServiceCaseEvents_ServiceCaseEventId] FOREIGN KEY ([ServiceCaseEventId]) REFERENCES [ServiceCaseEvents] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_ServiceDeskRequestOutbox_ServiceCases_ServiceCaseId] FOREIGN KEY ([ServiceCaseId]) REFERENCES [ServiceCases] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_ServiceCases_ServiceDeskRequestId] ON [ServiceCases] ([ServiceDeskRequestId]) WHERE [ServiceDeskRequestId] IS NOT NULL');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE INDEX [IX_ServiceDeskRequestClosureOutbox_Status_CreatedAtUtc] ON [ServiceDeskRequestClosureOutbox] ([Status], [CreatedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE INDEX [IX_ServiceDeskRequestClosureOutbox_Status_ProcessingStartedAtUtc] ON [ServiceDeskRequestClosureOutbox] ([Status], [ProcessingStartedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_ServiceDeskRequestClosureOutbox_ServiceCaseEventId] ON [ServiceDeskRequestClosureOutbox] ([ServiceCaseEventId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_ServiceDeskRequestClosureOutbox_ServiceCaseId] ON [ServiceDeskRequestClosureOutbox] ([ServiceCaseId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE INDEX [IX_ServiceDeskRequestOutbox_Status_CreatedAtUtc] ON [ServiceDeskRequestOutbox] ([Status], [CreatedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE INDEX [IX_ServiceDeskRequestOutbox_Status_ProcessingStartedAtUtc] ON [ServiceDeskRequestOutbox] ([Status], [ProcessingStartedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_ServiceDeskRequestOutbox_ServiceCaseEventId] ON [ServiceDeskRequestOutbox] ([ServiceCaseEventId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_ServiceDeskRequestOutbox_ServiceCaseId] ON [ServiceDeskRequestOutbox] ([ServiceCaseId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [UX_ServiceDeskRequestOutbox_ServiceDeskRequestId] ON [ServiceDeskRequestOutbox] ([ServiceDeskRequestId]) WHERE [ServiceDeskRequestId] IS NOT NULL');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109200114_AddServiceDeskIntegration'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261109200114_AddServiceDeskIntegration', N'10.0.13');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109213106_AddServiceDeskNoteOutbox'
+)
+BEGIN
+    CREATE TABLE [ServiceDeskNoteOutbox] (
+        [Id] uniqueidentifier NOT NULL,
+        [ServiceCaseId] uniqueidentifier NOT NULL,
+        [ServiceCaseEventId] uniqueidentifier NOT NULL,
+        [ServiceDeskNoteId] nvarchar(100) NULL,
+        [Description] nvarchar(4000) NOT NULL,
+        [Status] nvarchar(50) NOT NULL,
+        [CreatedAtUtc] datetime2 NOT NULL,
+        [ProcessingStartedAtUtc] datetime2 NULL,
+        [ProcessingOperationId] uniqueidentifier NULL,
+        [ProcessedAtUtc] datetime2 NULL,
+        [Error] nvarchar(1000) NULL,
+        CONSTRAINT [PK_ServiceDeskNoteOutbox] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_ServiceDeskNoteOutbox_ServiceCaseEvents_ServiceCaseEventId] FOREIGN KEY ([ServiceCaseEventId]) REFERENCES [ServiceCaseEvents] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_ServiceDeskNoteOutbox_ServiceCases_ServiceCaseId] FOREIGN KEY ([ServiceCaseId]) REFERENCES [ServiceCases] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109213106_AddServiceDeskNoteOutbox'
+)
+BEGIN
+    CREATE INDEX [IX_ServiceDeskNoteOutbox_ServiceCaseId] ON [ServiceDeskNoteOutbox] ([ServiceCaseId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109213106_AddServiceDeskNoteOutbox'
+)
+BEGIN
+    CREATE INDEX [IX_ServiceDeskNoteOutbox_Status_CreatedAtUtc] ON [ServiceDeskNoteOutbox] ([Status], [CreatedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109213106_AddServiceDeskNoteOutbox'
+)
+BEGIN
+    CREATE INDEX [IX_ServiceDeskNoteOutbox_Status_ProcessingStartedAtUtc] ON [ServiceDeskNoteOutbox] ([Status], [ProcessingStartedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109213106_AddServiceDeskNoteOutbox'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_ServiceDeskNoteOutbox_ServiceCaseEventId] ON [ServiceDeskNoteOutbox] ([ServiceCaseEventId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109213106_AddServiceDeskNoteOutbox'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [UX_ServiceDeskNoteOutbox_ServiceDeskNoteId] ON [ServiceDeskNoteOutbox] ([ServiceDeskNoteId]) WHERE [ServiceDeskNoteId] IS NOT NULL');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261109213106_AddServiceDeskNoteOutbox'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261109213106_AddServiceDeskNoteOutbox', N'10.0.13');
+END;
+
+COMMIT;
+GO
+

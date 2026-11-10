@@ -52,6 +52,12 @@ internal sealed class ServiceCaseConfiguration
         builder.Property(serviceCase => serviceCase.ClosedByUserId).IsRequired(false);
         builder.Property(serviceCase => serviceCase.ClosedAtUtc).IsRequired(false);
         builder.Ignore(serviceCase => serviceCase.IsActive);
+        builder.Property(serviceCase => serviceCase.ServiceDeskRequestId).HasMaxLength(100);
+        builder.Property(serviceCase => serviceCase.ServiceDeskSyncStatus).HasConversion<string>().HasMaxLength(50).IsRequired().HasDefaultValue(ServiceDeskSyncStatus.NotStarted);;
+        builder.Property(serviceCase => serviceCase.ServiceDeskOperationId);
+        builder.Property(serviceCase => serviceCase.ServiceDeskSyncStartedAtUtc);
+        builder.Property(serviceCase => serviceCase.ServiceDeskSyncCompletedAtUtc);
+        builder.Property(serviceCase => serviceCase.ServiceDeskSyncError).HasMaxLength(1000);
     }
 
     private static void ConfigureIndexes(EntityTypeBuilder<ServiceCase> builder)
@@ -84,6 +90,10 @@ internal sealed class ServiceCaseConfiguration
                     serviceCase.Status
                 })
             .HasDatabaseName("IX_ServiceCases_AssetId_Status");
+        
+        builder.HasIndex(serviceCase => serviceCase.ServiceDeskRequestId)
+            .IsUnique()
+            .HasFilter("[ServiceDeskRequestId] IS NOT NULL");
     }
 
     private static void ConfigureRelationships(EntityTypeBuilder<ServiceCase> builder)

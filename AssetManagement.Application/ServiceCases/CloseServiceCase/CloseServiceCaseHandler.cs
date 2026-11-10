@@ -1,28 +1,34 @@
 using AssetManagement.Application.Common.Authorization;
 using AssetManagement.Application.Common.Interfaces.Assets;
 using AssetManagement.Application.Common.Interfaces.ServiceCases;
+using AssetManagement.Application.Common.Interfaces.ServiceDesk;
 using AssetManagement.Application.Common.Interfaces.Users;
 using AssetManagement.Application.ServiceCases.Exceptions;
 using AssetManagement.Domain.Entities.ServiceCases;
+using AssetManagement.Domain.Entities.ServiceDesk;
 
 namespace AssetManagement.Application.ServiceCases.CloseServiceCase;
 
 public sealed class CloseServiceCaseHandler
 {
     private readonly IServiceCaseRepository _serviceCaseRepository;
+    private readonly IServiceDeskRequestClosureOutboxRepository _closureOutboxRepository;
     private readonly ICurrentApplicationUserResolver _currentApplicationUserResolver;
     private readonly IAssetOperationExecutor _assetOperationExecutor;
 
     public CloseServiceCaseHandler(
         IServiceCaseRepository serviceCaseRepository,
+        IServiceDeskRequestClosureOutboxRepository closureOutboxRepository,
         ICurrentApplicationUserResolver currentApplicationUserResolver,
         IAssetOperationExecutor assetOperationExecutor)
     {
         ArgumentNullException.ThrowIfNull(serviceCaseRepository);
+        ArgumentNullException.ThrowIfNull(closureOutboxRepository);
         ArgumentNullException.ThrowIfNull(currentApplicationUserResolver);
         ArgumentNullException.ThrowIfNull(assetOperationExecutor);
 
         _serviceCaseRepository = serviceCaseRepository;
+        _closureOutboxRepository = closureOutboxRepository;
         _currentApplicationUserResolver = currentApplicationUserResolver;
         _assetOperationExecutor = assetOperationExecutor;
     }
@@ -36,35 +42,12 @@ public sealed class CloseServiceCaseHandler
     /// The service case is reloaded after acquiring the asset lock.
     ///
     /// Authorization, state validation, closure, event creation,
-    /// and persistence occur inside the protected transaction.
+    /// ServiceDesk task outbox creation, and external request
+    /// closure outbox creation occur inside the protected transaction.
+    ///
+    /// External ServiceDesk API calls are not executed
+    /// inside the database transaction.
     /// </remarks>
-    /// <param name="serviceCaseId">
-    /// The identifier of the service case.
-    /// </param>
-    /// <param name="request">
-    /// The service case closure request.
-    /// </param>
-    /// <param name="cancellationToken">
-    /// A token used to cancel lookup, lock acquisition, and execution.
-    /// </param>
-    /// <returns>
-    /// The closure result after the transaction commits.
-    /// </returns>
-    /// <exception cref="ArgumentNullException">
-    /// Thrown when the request is null.
-    /// </exception>
-    /// <exception cref="ArgumentException">
-    /// Thrown when the service case identifier or comment is invalid.
-    /// </exception>
-    /// <exception cref="ServiceCaseNotFoundException">
-    /// Thrown when the service case cannot be found.
-    /// </exception>
-    /// <exception cref="ServiceCaseStateConflictException">
-    /// Thrown when the service case relationship or state is invalid.
-    /// </exception>
-    /// <exception cref="TimeoutException">
-    /// Thrown when the asset lock cannot be acquired within the timeout.
-    /// </exception>
     public async Task<CloseServiceCaseResponse> HandleAsync(
         Guid serviceCaseId,
         CloseServiceCaseRequest request,
@@ -74,8 +57,8 @@ public sealed class CloseServiceCaseHandler
         ArgumentNullException.ThrowIfNull(request);
         ValidateComment(request.Comment);
 
-        var serviceCaseSnapshot =
-            await _serviceCaseRepository.GetByIdAsync(
+        // Preliminary lookup must remain no-tracking.
+        var serviceCaseSnapshot = await _serviceCaseRepository.GetByIdAsync(
                 serviceCaseId,
                 cancellationToken)
             ?? throw new ServiceCaseNotFoundException(serviceCaseId);
@@ -84,13 +67,10 @@ public sealed class CloseServiceCaseHandler
 
         if (assetId == Guid.Empty)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCaseId,
-                "The service case does not reference a valid asset.");
+            throw new ServiceCaseStateConflictException(serviceCaseId, "The service case does not reference a valid asset.");
         }
 
-        return await _assetOperationExecutor
-            .ExecuteAsync<CloseServiceCaseResponse>(
+        return await _assetOperationExecutor.ExecuteAsync<CloseServiceCaseResponse>(
                 assetIds: new[] { assetId },
                 operation: token => HandleCoreAsync(
                     serviceCaseId,
@@ -114,32 +94,30 @@ public sealed class CloseServiceCaseHandler
 
         ServiceCaseAuthorization.EnsureCanClose(currentUser);
 
-        var serviceCase =
-            await _serviceCaseRepository.GetForUpdateByIdAsync(
-                serviceCaseId,
-                cancellationToken)
+        var serviceCase = await _serviceCaseRepository.GetForUpdateByIdAsync(serviceCaseId, cancellationToken)
             ?? throw new ServiceCaseNotFoundException(serviceCaseId);
 
         if (serviceCase.AssetId != lockedAssetId)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCaseId,
-                "The asset associated with the service case changed " +
-                "before the operation acquired its lock.");
+            throw new ServiceCaseStateConflictException(serviceCaseId,
+                "The asset associated with the service case changed before the operation acquired its lock.");
         }
 
         if (serviceCase.Status != ServiceCaseStatus.Resolved)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCase.Id,
+            throw new ServiceCaseStateConflictException(serviceCaseId,
                 "Only a resolved service case can be closed.");
         }
 
         var previousStatus = serviceCase.Status;
         var closedAtUtc = DateTime.UtcNow;
 
-        serviceCase.Close(closedByUserId: currentUser.Id, closedAtUtc: closedAtUtc);
+        // Close the local service case.
+        serviceCase.Close(
+            closedByUserId: currentUser.Id,
+            closedAtUtc: closedAtUtc);
 
+        // Create the local service case closure event.
         var serviceCaseEvent = ServiceCaseEvent.Create(
             serviceCaseId: serviceCase.Id,
             type: ServiceCaseEventType.Closed,
@@ -150,7 +128,22 @@ public sealed class CloseServiceCaseHandler
             performedByUserName: currentUser.DisplayName,
             occurredAtUtc: closedAtUtc);
 
-        var response = new CloseServiceCaseResponse(
+        // Register the service case closure event.
+        await _serviceCaseRepository.AddEventAsync(serviceCaseEvent, cancellationToken);
+
+        // Register the external ServiceDesk request closure operation.
+        // No new task is created for the Closed event.
+        var closureOutbox = ServiceDeskRequestClosureOutbox.Create(
+            serviceCaseId: serviceCase.Id,
+            serviceCaseEventId: serviceCaseEvent.Id,
+            createdAtUtc: closedAtUtc);
+
+        await _closureOutboxRepository.AddAsync(closureOutbox, cancellationToken);
+
+        // Persist the service case, closure event, and request closure outbox.
+        await _serviceCaseRepository.SaveChangesAsync(cancellationToken);
+
+        return new CloseServiceCaseResponse(
             ServiceCaseId: serviceCase.Id,
             CaseNumber: serviceCase.CaseNumber,
             AssetId: serviceCase.AssetId,
@@ -158,19 +151,13 @@ public sealed class CloseServiceCaseHandler
             ClosedAtUtc: closedAtUtc,
             ClosedByUserId: currentUser.Id,
             ClosedByUserName: currentUser.DisplayName);
-
-        await _serviceCaseRepository.AddEventAsync(serviceCaseEvent, cancellationToken);
-        await _serviceCaseRepository.SaveChangesAsync(cancellationToken);
-
-        return response;
     }
 
     private static void ValidateServiceCaseId(Guid serviceCaseId)
     {
         if (serviceCaseId == Guid.Empty)
         {
-            throw new ArgumentException("The service case identifier cannot be empty.",
-                nameof(serviceCaseId));
+            throw new ArgumentException("The service case identifier cannot be empty.", nameof(serviceCaseId));
         }
     }
 

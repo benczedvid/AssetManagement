@@ -129,6 +129,10 @@ export const routes: Routes = [
         loadChildren: () => import('../app/features/administration/administration.routes').then(module => module.administrationRoutes),
       },
       {
+        path: 'settings',
+        loadChildren: () => import('../app/features/settings/settings.routes').then(module => module.settingsRoutes),
+      },
+      {
         path: 'forbidden',
         loadComponent: () =>
           import(

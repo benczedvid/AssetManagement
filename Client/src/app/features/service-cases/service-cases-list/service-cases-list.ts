@@ -1077,6 +1077,9 @@ clearStatusFilters(): void {
       ],
     });
   }
+  getServiceDeskRequestUrl(requestId: string): string {
+    return `https://servicedesk.praktiker.hu/WorkOrder.do?woMode=viewWO&woID=${encodeURIComponent(requestId)}&PORTALID=1`;
+  }
 
   private getOperationError(error: unknown, operation: 'open' | 'action'): string {
     if (error instanceof HttpErrorResponse) {

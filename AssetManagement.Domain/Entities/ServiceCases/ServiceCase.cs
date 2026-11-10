@@ -18,6 +18,14 @@ namespace AssetManagement.Domain.Entities.ServiceCases
         public DateTime? ClosedAtUtc { get; private set; }
         public bool IsActive => Status != ServiceCaseStatus.Closed && Status != ServiceCaseStatus.Cancelled;
 
+        //ServiceDeskIntegration
+        public string? ServiceDeskRequestId { get; private set;}
+        public ServiceDeskSyncStatus ServiceDeskSyncStatus { get; private set; } = ServiceDeskSyncStatus.NotStarted;
+        public Guid? ServiceDeskOperationId { get; private set; }
+        public DateTime? ServiceDeskSyncStartedAtUtc { get; private set; }
+        public DateTime? ServiceDeskSyncCompletedAtUtc { get; private set; }
+        public string? ServiceDeskSyncError { get; private set; }
+
         private ServiceCase() { }
         private ServiceCase(
             Guid id,
@@ -430,6 +438,84 @@ namespace AssetManagement.Domain.Entities.ServiceCases
             if (initialStatus == ServiceCaseStatus.UnderCentralInspection && originStoreId.HasValue)
             {
                 throw new ArgumentException("An origin store cannot be specified when the service case is opened at headquarters.", nameof(originStoreId));
+            }
+        }
+        public void SetServiceDeskRequestId(string requestId)
+        {
+            if (string.IsNullOrWhiteSpace(requestId))
+            {
+                throw new ArgumentException("ServiceDesk request ID cannot be empty.", nameof(requestId));
+            }
+
+            if (ServiceDeskRequestId is not null)
+            {
+                throw new InvalidOperationException("A ServiceDesk request is already assigned to this service case.");
+            }
+
+            ServiceDeskRequestId = requestId.Trim();
+        }
+        public void BeginServiceDeskSync(DateTime nowUtc)
+        {
+            if (ServiceDeskSyncStatus is not (ServiceDeskSyncStatus.NotStarted or ServiceDeskSyncStatus.Failed))
+            {
+                throw new InvalidOperationException("ServiceDesk synchronization cannot be started in the current state.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(ServiceDeskRequestId))
+            {
+                throw new InvalidOperationException("A ServiceDesk request is already assigned to this service case.");
+            }
+
+            ServiceDeskOperationId = Guid.NewGuid();
+            ServiceDeskSyncStatus = ServiceDeskSyncStatus.Pending;
+            ServiceDeskSyncStartedAtUtc = nowUtc;
+            ServiceDeskSyncCompletedAtUtc = null;
+            ServiceDeskSyncError = null;
+        }
+
+        public void CompleteServiceDeskSync(Guid operationId, string requestId, DateTime nowUtc)
+        {
+            if (ServiceDeskSyncStatus != ServiceDeskSyncStatus.Pending || ServiceDeskOperationId != operationId)
+            {
+                throw new InvalidOperationException("The ServiceDesk operation is not pending.");
+            }
+
+            if (string.IsNullOrWhiteSpace(requestId))
+            {
+                throw new ArgumentException("ServiceDesk request ID cannot be empty.", nameof(requestId));
+            }
+
+            if (!string.IsNullOrWhiteSpace(ServiceDeskRequestId))
+            {
+                throw new InvalidOperationException("A ServiceDesk request is already assigned.");
+            }
+
+            ServiceDeskRequestId = requestId.Trim();
+            ServiceDeskSyncStatus = ServiceDeskSyncStatus.Completed;
+            ServiceDeskSyncCompletedAtUtc = nowUtc;
+            ServiceDeskSyncError = null;
+        }
+
+        public void FailServiceDeskSync(Guid operationId, string error)
+        {
+            EnsurePendingOperation(operationId);
+            ServiceDeskSyncStatus = ServiceDeskSyncStatus.Failed;
+            ServiceDeskSyncError = error;
+        }
+
+        public void RequireServiceDeskReconciliation(Guid operationId,
+            string reason)
+        {
+            EnsurePendingOperation(operationId);
+            ServiceDeskSyncStatus = ServiceDeskSyncStatus.RequiresReconciliation;
+            ServiceDeskSyncError = reason;
+        }
+
+        private void EnsurePendingOperation(Guid operationId)
+        {
+            if (ServiceDeskSyncStatus != ServiceDeskSyncStatus.Pending || ServiceDeskOperationId != operationId)
+            {
+                throw new InvalidOperationException("The ServiceDesk operation is not pending.");
             }
         }
     }

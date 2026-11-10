@@ -3,11 +3,13 @@ using AssetManagement.Application.Common.Authorization;
 using AssetManagement.Application.Common.Interfaces.AssetHistories;
 using AssetManagement.Application.Common.Interfaces.Assets;
 using AssetManagement.Application.Common.Interfaces.ServiceCases;
+using AssetManagement.Application.Common.Interfaces.ServiceDesk;
 using AssetManagement.Application.Common.Interfaces.Users;
 using AssetManagement.Application.ServiceCases.Exceptions;
 using AssetManagement.Domain.Entities.AssetHistories;
 using AssetManagement.Domain.Entities.Assets;
 using AssetManagement.Domain.Entities.ServiceCases;
+using AssetManagement.Domain.Entities.ServiceDesk;
 using AssetManagement.Domain.Entities.Users;
 
 namespace AssetManagement.Application.ServiceCases.ConfirmReceivedByExternalService;
@@ -19,25 +21,29 @@ public sealed class ConfirmReceivedByExternalServiceHandler
     private readonly IAssetHistoryRepository _assetHistoryRepository;
     private readonly ICurrentApplicationUserResolver _currentApplicationUserResolver;
     private readonly IAssetOperationExecutor _assetOperationExecutor;
+    private readonly IServiceDeskNoteOutboxRepository _noteOutboxRepository;
 
     public ConfirmReceivedByExternalServiceHandler(
         IServiceCaseRepository serviceCaseRepository,
         IAssetRepository assetRepository,
         IAssetHistoryRepository assetHistoryRepository,
         ICurrentApplicationUserResolver currentApplicationUserResolver,
-        IAssetOperationExecutor assetOperationExecutor)
+        IAssetOperationExecutor assetOperationExecutor,
+        IServiceDeskNoteOutboxRepository serviceDeskNoteOutboxRepository)
     {
         ArgumentNullException.ThrowIfNull(serviceCaseRepository);
         ArgumentNullException.ThrowIfNull(assetRepository);
         ArgumentNullException.ThrowIfNull(assetHistoryRepository);
         ArgumentNullException.ThrowIfNull(currentApplicationUserResolver);
         ArgumentNullException.ThrowIfNull(assetOperationExecutor);
+        ArgumentNullException.ThrowIfNull(serviceDeskNoteOutboxRepository);
 
         _serviceCaseRepository = serviceCaseRepository;
         _assetRepository = assetRepository;
         _assetHistoryRepository = assetHistoryRepository;
         _currentApplicationUserResolver = currentApplicationUserResolver;
         _assetOperationExecutor = assetOperationExecutor;
+        _noteOutboxRepository = serviceDeskNoteOutboxRepository;
     }
 
     /// <summary>
@@ -49,7 +55,10 @@ public sealed class ConfirmReceivedByExternalServiceHandler
     /// The service case and asset are reloaded after acquiring the lock.
     ///
     /// Authorization, state validation, state changes, audit creation,
-    /// and persistence occur inside the protected transaction.
+    /// ServiceDesk task outbox creation, and persistence occur inside
+    /// the protected transaction.
+    ///
+    /// No external ServiceDesk API calls are made within this transaction.
     /// </remarks>
     /// <param name="serviceCaseId">
     /// The identifier of the service case.
@@ -78,31 +87,22 @@ public sealed class ConfirmReceivedByExternalServiceHandler
     /// <exception cref="TimeoutException">
     /// Thrown when the asset lock cannot be acquired within the timeout.
     /// </exception>
-    public async Task<ConfirmReceivedByExternalServiceResponse> HandleAsync(
-        Guid serviceCaseId,
-        ConfirmReceivedByExternalServiceRequest request,
-        CancellationToken cancellationToken = default)
+    public async Task<ConfirmReceivedByExternalServiceResponse> HandleAsync(Guid serviceCaseId, ConfirmReceivedByExternalServiceRequest request, CancellationToken cancellationToken = default)
     {
         ValidateServiceCaseId(serviceCaseId);
         ArgumentNullException.ThrowIfNull(request);
 
-        var serviceCaseSnapshot =
-            await _serviceCaseRepository.GetByIdAsync(
-                serviceCaseId,
-                cancellationToken)
+        var serviceCaseSnapshot = await _serviceCaseRepository.GetByIdAsync(serviceCaseId, cancellationToken)
             ?? throw new ServiceCaseNotFoundException(serviceCaseId);
 
         var assetId = serviceCaseSnapshot.AssetId;
 
         if (assetId == Guid.Empty)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCaseId,
-                "The service case does not reference a valid asset.");
+            throw new ServiceCaseStateConflictException( serviceCaseId, "The service case does not reference a valid asset.");
         }
 
-        return await _assetOperationExecutor
-            .ExecuteAsync<ConfirmReceivedByExternalServiceResponse>(
+        return await _assetOperationExecutor.ExecuteAsync<ConfirmReceivedByExternalServiceResponse>(
                 assetIds: new[] { assetId },
                 operation: token => HandleCoreAsync(
                     serviceCaseId,
@@ -112,11 +112,11 @@ public sealed class ConfirmReceivedByExternalServiceHandler
                 cancellationToken: cancellationToken);
     }
 
-    private async Task<ConfirmReceivedByExternalServiceResponse>HandleCoreAsync(
-            Guid serviceCaseId,
-            Guid lockedAssetId,
-            ConfirmReceivedByExternalServiceRequest request,
-            CancellationToken cancellationToken = default)
+    private async Task<ConfirmReceivedByExternalServiceResponse> HandleCoreAsync(
+        Guid serviceCaseId,
+        Guid lockedAssetId,
+        ConfirmReceivedByExternalServiceRequest request,
+        CancellationToken cancellationToken = default)
     {
         ValidateServiceCaseId(serviceCaseId);
         ArgumentNullException.ThrowIfNull(request);
@@ -125,23 +125,16 @@ public sealed class ConfirmReceivedByExternalServiceHandler
 
         ServiceCaseAuthorization.EnsureCanManageAll(currentUser);
 
-        var serviceCase =
-            await _serviceCaseRepository.GetForUpdateByIdAsync(
-                serviceCaseId,
-                cancellationToken)
+        var serviceCase = await _serviceCaseRepository.GetForUpdateByIdAsync(serviceCaseId, cancellationToken)
             ?? throw new ServiceCaseNotFoundException(serviceCaseId);
 
         if (serviceCase.AssetId != lockedAssetId)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCaseId,
+            throw new ServiceCaseStateConflictException(serviceCaseId,
                 "The asset associated with the service case changed before the operation acquired its lock.");
         }
 
-        var asset =
-            await _assetRepository.GetForUpdateByIdAsync(
-                lockedAssetId,
-                cancellationToken)
+        var asset = await _assetRepository.GetForUpdateByIdAsync(lockedAssetId, cancellationToken)
             ?? throw new AssetNotFoundException(lockedAssetId);
 
         ValidateConsistentState(serviceCase, asset);
@@ -150,32 +143,54 @@ public sealed class ConfirmReceivedByExternalServiceHandler
         var previousAssetStatus = asset.AssetStatus;
         var confirmedAtUtc = DateTime.UtcNow;
 
+        // Update the service case and asset.
         serviceCase.ConfirmReceivedByExternalService();
-
         asset.ConfirmReceivedByExternalService();
 
+        // Create the local service case event.
         var serviceCaseEvent = ServiceCaseEvent.Create(
-                serviceCaseId: serviceCase.Id,
-                type: ServiceCaseEventType.ReceivedByExternalService,
-                previousStatus: previousServiceCaseStatus,
-                newStatus: serviceCase.Status,
-                comment: request.Comment,
-                performedByUserId: currentUser.Id,
-                performedByUserName: currentUser.DisplayName,
-                occurredAtUtc: confirmedAtUtc);
+            serviceCaseId: serviceCase.Id,
+            type: ServiceCaseEventType.ReceivedByExternalService,
+            previousStatus: previousServiceCaseStatus,
+            newStatus: serviceCase.Status,
+            comment: request.Comment,
+            performedByUserId: currentUser.Id,
+            performedByUserName: currentUser.DisplayName,
+            occurredAtUtc: confirmedAtUtc);
 
+        // Create the asset status history.
         var assetHistory = new AssetHistory(
-                assetId: asset.Id,
-                action: nameof(Asset.ConfirmReceivedByExternalService),
-                propertyName: nameof(Asset.AssetStatus),
-                oldValue: previousAssetStatus.ToString(),
-                newValue: asset.AssetStatus.ToString(),
-                changedByUserId: currentUser.Id,
-                changedByUserName: currentUser.DisplayName,
-                changedAtUtc: confirmedAtUtc);
+            assetId: asset.Id,
+            action: nameof(Asset.ConfirmReceivedByExternalService),
+            propertyName: nameof(Asset.AssetStatus),
+            oldValue: previousAssetStatus.ToString(),
+            newValue: asset.AssetStatus.ToString(),
+            changedByUserId: currentUser.Id,
+            changedByUserName: currentUser.DisplayName,
+            changedAtUtc: confirmedAtUtc);
 
         await _serviceCaseRepository.AddEventAsync(serviceCaseEvent, cancellationToken);
+
+        // Build the Hungarian HTML description.
+        var noteDescription = BuildServiceDeskNoteDescription(
+            serviceCase,
+            serviceCaseEvent,
+            asset);
+
+        // Register the ServiceDesk request note.
+        // External synchronization is handled by the background processor.
+        var noteOutbox = ServiceDeskNoteOutbox.Create(
+            serviceCaseId: serviceCase.Id,
+            serviceCaseEventId: serviceCaseEvent.Id,
+            description: noteDescription,
+            createdAtUtc: confirmedAtUtc);
+
+        await _noteOutboxRepository.AddAsync(noteOutbox, cancellationToken);
+
+        // Persist the asset history.
         await _assetHistoryRepository.AddRangeAsync([assetHistory], cancellationToken);
+
+        // Persist all changes within the protected transaction.
         await _serviceCaseRepository.SaveChangesAsync(cancellationToken);
 
         return CreateResponse(
@@ -185,12 +200,11 @@ public sealed class ConfirmReceivedByExternalServiceHandler
             confirmedAtUtc);
     }
 
-    private static ConfirmReceivedByExternalServiceResponse
-        CreateResponse(
-            ServiceCase serviceCase,
-            Asset asset,
-            ApplicationUser currentUser,
-            DateTime confirmedAtUtc)
+    private static ConfirmReceivedByExternalServiceResponse CreateResponse(
+        ServiceCase serviceCase,
+        Asset asset,
+        ApplicationUser currentUser,
+        DateTime confirmedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(serviceCase);
         ArgumentNullException.ThrowIfNull(asset);
@@ -233,17 +247,81 @@ public sealed class ConfirmReceivedByExternalServiceHandler
 
         if (serviceCase.Status != ServiceCaseStatus.SentToExternalService)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "Only a service case sent to external service can be marked as received by the external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "Only a service case sent to external service can be marked as received by the external service.");
         }
 
         if (!serviceCase.VendorId.HasValue || serviceCase.VendorId.Value == Guid.Empty)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "A valid vendor must be assigned before external service receipt can be confirmed.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "A valid vendor must be assigned before external service receipt can be confirmed.");
         }
 
         if (asset.AssetStatus != AssetStatus.Route_To_Service)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id, "Only an asset being routed to external service can be marked as received by the external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id,
+                "Only an asset being routed to external service can be marked as received by the external service.");
         }
+    }
+
+    /// <summary>
+    /// Builds the Hungarian HTML description for
+    /// external service receipt confirmation.
+    /// </summary>
+    private static string BuildServiceDeskNoteDescription(ServiceCase serviceCase, ServiceCaseEvent serviceCaseEvent, Asset asset)
+    {
+        ArgumentNullException.ThrowIfNull(serviceCase);
+        ArgumentNullException.ThrowIfNull(serviceCaseEvent);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        static string Encode(string? value)
+        {
+            return System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(value) ? "Nincs megadva" : value);
+        }
+
+        var comment = Encode(serviceCaseEvent.Comment)
+            .Replace("\r\n", "\n")
+            .Replace("\n", "<br>");
+
+        return $"""
+            <div>
+                <h3>Külső szerviz átvette az eszközt</h3>
+
+                <p>
+                    <strong>Szervizügy:</strong>
+                    {Encode(serviceCase.CaseNumber)}
+                </p>
+
+                <p>
+                    <strong>Eszköz neve:</strong>
+                    {Encode(asset.AssetName)}
+                </p>
+
+                <p>
+                    <strong>Gyári szám:</strong>
+                    {Encode(asset.SerialNumber)}
+                </p>
+
+                <p>
+                    <strong>Korábbi állapot:</strong>
+                    {Encode(serviceCaseEvent.PreviousStatus?.ToString())}
+                </p>
+
+                <p>
+                    <strong>Új állapot:</strong>
+                    {Encode(serviceCaseEvent.NewStatus.ToString())}
+                </p>
+
+                <p>
+                    <strong>Műveletet végrehajtotta:</strong>
+                    {Encode(serviceCaseEvent.PerformedByUserName)}
+                </p>
+
+                <p>
+                    <strong>Megjegyzés:</strong><br>
+                    {comment}
+                </p>
+            </div>
+            """;
     }
 }

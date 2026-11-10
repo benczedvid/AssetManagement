@@ -33,6 +33,8 @@ using AssetManagement.Application.ServiceCases.OpenServiceCase;
 using AssetManagement.Application.ServiceCases.RequireExternalService;
 using AssetManagement.Application.ServiceCases.ResolveAfterExternalServiceReturn;
 using AssetManagement.Application.ServiceCases.ReturnFromExternalService;
+using AssetManagement.Application.ServiceDesk.GetServiceDeskSyncOperations;
+using AssetManagement.Application.ServiceDesk.ReconcileServiceDeskRequest;
 using AssetManagement.Application.Stores.CreateStore;
 using AssetManagement.Application.Stores.GetStoreById;
 using AssetManagement.Application.Stores.GetStores;
@@ -91,6 +93,9 @@ namespace AssetManagement.Application
             services.AddScoped<GetServiceCasesHandler>();
             services.AddScoped<GetServiceCaseDetailsHandler>();
             services.AddScoped<DisposeServiceCaseAssetHandler>();
+            
+            services.AddScoped<ReconcileServiceDeskRequestHandler>();
+            services.AddScoped<GetServiceDeskSyncOperationsHandler>();
 
             services.AddSingleton(TimeProvider.System);
             services.AddScoped<IDailyAssetReportService, StartOfDayAssetReportService>();

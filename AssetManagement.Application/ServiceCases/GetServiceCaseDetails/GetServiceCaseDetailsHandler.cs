@@ -75,7 +75,9 @@ public sealed class GetServiceCaseDetailsHandler
             ClosedByUserId: serviceCase.ClosedByUserId,
             ClosedAtUtc: serviceCase.ClosedAtUtc,
             Events: events,
-            AvailableActions: availableActions);
+            AvailableActions: availableActions,
+            ServiceDeskRequestId: serviceCase.ServiceDeskRequestId
+            );
     }
 
     private static void ValidateAccess(ServiceCase serviceCase, UserAccessScope accessScope)

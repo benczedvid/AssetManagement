@@ -1,0 +1,94 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.settings-dashboard {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+
+  min-height: 270px;
+  padding: 24px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  background: #ffffff;
+
+  text-decoration: none;
+
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.04);
+
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.settings-card:hover {
+  border-color: #93c5fd;
+
+  box-shadow:
+    0 8px 24px rgba(0, 43, 81, 0.08);
+
+  transform: translateY(-2px);
+}
+
+.settings-card:focus-visible {
+  outline: 2px solid #006ab2;
+  outline-offset: 3px;
+}
+
+.settings-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 60px;
+  height: 60px;
+
+  border-radius: 14px;
+
+  background: #e0f2fe;
+  color: #006ab2;
+}
+
+@media (max-width: 768px) {
+  .settings-dashboard {
+    padding: 16px;
+  }
+
+  .settings-card {
+    min-height: 240px;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-dashboard {
+    padding: 12px;
+  }
+
+  .settings-card {
+    min-height: 220px;
+    padding: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-card {
+    transition: none;
+  }
+
+  .settings-card:hover {
+    transform: none;
+  }
+}

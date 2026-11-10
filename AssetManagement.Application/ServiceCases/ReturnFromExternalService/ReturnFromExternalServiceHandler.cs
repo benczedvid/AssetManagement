@@ -3,11 +3,13 @@ using AssetManagement.Application.Common.Authorization;
 using AssetManagement.Application.Common.Interfaces.AssetHistories;
 using AssetManagement.Application.Common.Interfaces.Assets;
 using AssetManagement.Application.Common.Interfaces.ServiceCases;
+using AssetManagement.Application.Common.Interfaces.ServiceDesk;
 using AssetManagement.Application.Common.Interfaces.Users;
 using AssetManagement.Application.ServiceCases.Exceptions;
 using AssetManagement.Domain.Entities.AssetHistories;
 using AssetManagement.Domain.Entities.Assets;
 using AssetManagement.Domain.Entities.ServiceCases;
+using AssetManagement.Domain.Entities.ServiceDesk;
 using AssetManagement.Domain.Entities.Users;
 
 namespace AssetManagement.Application.ServiceCases.ReturnFromExternalService
@@ -19,25 +21,29 @@ namespace AssetManagement.Application.ServiceCases.ReturnFromExternalService
         private readonly IAssetHistoryRepository _assetHistoryRepository;
         private readonly ICurrentApplicationUserResolver _currentApplicationUserResolver;
         private readonly IAssetOperationExecutor _assetOperationExecutor;
+        private readonly IServiceDeskNoteOutboxRepository _noteOutboxRepository;
 
         public ReturnFromExternalServiceHandler(
             IServiceCaseRepository serviceCaseRepository,
             IAssetRepository assetRepository,
             IAssetHistoryRepository assetHistoryRepository,
             ICurrentApplicationUserResolver currentApplicationUserResolver,
-            IAssetOperationExecutor assetOperationExecutor)
+            IAssetOperationExecutor assetOperationExecutor,
+            IServiceDeskNoteOutboxRepository serviceDeskNoteOutboxRepository)
         {
             ArgumentNullException.ThrowIfNull(serviceCaseRepository);
             ArgumentNullException.ThrowIfNull(assetRepository);
             ArgumentNullException.ThrowIfNull(assetHistoryRepository);
             ArgumentNullException.ThrowIfNull(currentApplicationUserResolver);
             ArgumentNullException.ThrowIfNull(assetOperationExecutor);
+            ArgumentNullException.ThrowIfNull(serviceDeskNoteOutboxRepository);
 
             _serviceCaseRepository = serviceCaseRepository;
             _assetRepository = assetRepository;
             _assetHistoryRepository = assetHistoryRepository;
             _currentApplicationUserResolver = currentApplicationUserResolver;
             _assetOperationExecutor = assetOperationExecutor;
+            _noteOutboxRepository = serviceDeskNoteOutboxRepository;
         }
 
         /// <summary>
@@ -50,8 +56,12 @@ namespace AssetManagement.Application.ServiceCases.ReturnFromExternalService
         /// The service case and asset are reloaded after acquiring
         /// the asset lock.
         ///
-        /// All state changes, audit records, and persistence operations
-        /// execute inside the protected transaction.
+        /// All state changes, audit records, ServiceDesk task outbox
+        /// creation, and persistence operations execute inside
+        /// the protected transaction.
+        ///
+        /// No external ServiceDesk API calls are made within
+        /// this transaction.
         /// </remarks>
         /// <param name="serviceCaseId">
         /// The identifier of the service case.
@@ -80,31 +90,22 @@ namespace AssetManagement.Application.ServiceCases.ReturnFromExternalService
         /// <exception cref="TimeoutException">
         /// Thrown when the asset lock cannot be acquired.
         /// </exception>
-        public async Task<ReturnFromExternalServiceResponse> HandleAsync(
-            Guid serviceCaseId,
-            ReturnFromExternalServiceRequest request,
-            CancellationToken cancellationToken = default)
+        public async Task<ReturnFromExternalServiceResponse> HandleAsync(Guid serviceCaseId, ReturnFromExternalServiceRequest request, CancellationToken cancellationToken = default)
         {
             ValidateServiceCaseId(serviceCaseId);
             ArgumentNullException.ThrowIfNull(request);
 
-            var serviceCaseSnapshot =
-                await _serviceCaseRepository.GetByIdAsync(
-                    serviceCaseId,
-                    cancellationToken)
+            var serviceCaseSnapshot = await _serviceCaseRepository.GetByIdAsync(serviceCaseId, cancellationToken)
                 ?? throw new ServiceCaseNotFoundException(serviceCaseId);
 
             var assetId = serviceCaseSnapshot.AssetId;
 
             if (assetId == Guid.Empty)
             {
-                throw new ServiceCaseStateConflictException(
-                    serviceCaseId,
-                    "The service case does not reference a valid asset.");
+                throw new ServiceCaseStateConflictException( serviceCaseId, "The service case does not reference a valid asset.");
             }
 
-            return await _assetOperationExecutor
-                .ExecuteAsync<ReturnFromExternalServiceResponse>(
+            return await _assetOperationExecutor.ExecuteAsync<ReturnFromExternalServiceResponse>(
                     assetIds: new[] { assetId },
                     operation: token => HandleCoreAsync(
                         serviceCaseId,
@@ -127,24 +128,16 @@ namespace AssetManagement.Application.ServiceCases.ReturnFromExternalService
 
             ServiceCaseAuthorization.EnsureCanManageAll(currentUser);
 
-            var serviceCase =
-                await _serviceCaseRepository.GetForUpdateByIdAsync(
-                    serviceCaseId,
-                    cancellationToken)
+            var serviceCase = await _serviceCaseRepository.GetForUpdateByIdAsync(serviceCaseId, cancellationToken)
                 ?? throw new ServiceCaseNotFoundException(serviceCaseId);
 
             if (serviceCase.AssetId != lockedAssetId)
             {
-                throw new ServiceCaseStateConflictException(
-                    serviceCaseId,
-                    "The asset associated with the service case changed " +
-                    "before the operation acquired its lock.");
+                throw new ServiceCaseStateConflictException(serviceCaseId,
+                    "The asset associated with the service case changed before the operation acquired its lock.");
             }
 
-            var asset =
-                await _assetRepository.GetForUpdateByIdAsync(
-                    lockedAssetId,
-                    cancellationToken)
+            var asset = await _assetRepository.GetForUpdateByIdAsync(lockedAssetId, cancellationToken)
                 ?? throw new AssetNotFoundException(lockedAssetId);
 
             ValidateConsistentState(serviceCase, asset);
@@ -153,32 +146,54 @@ namespace AssetManagement.Application.ServiceCases.ReturnFromExternalService
             var previousAssetStatus = asset.AssetStatus;
             var returnedAtUtc = DateTime.UtcNow;
 
+            // Update the service case and asset.
             serviceCase.ReturnFromExternalService();
-
             asset.ReturnFromExternalService();
 
+            // Create the local service case event.
             var serviceCaseEvent = ServiceCaseEvent.Create(
-                    serviceCaseId: serviceCase.Id,
-                    type: ServiceCaseEventType.ReturnedFromExternalService,
-                    previousStatus: previousServiceCaseStatus,
-                    newStatus: serviceCase.Status,
-                    comment: request.Comment,
-                    performedByUserId: currentUser.Id,
-                    performedByUserName: currentUser.DisplayName,
-                    occurredAtUtc: returnedAtUtc);
+                serviceCaseId: serviceCase.Id,
+                type: ServiceCaseEventType.ReturnedFromExternalService,
+                previousStatus: previousServiceCaseStatus,
+                newStatus: serviceCase.Status,
+                comment: request.Comment,
+                performedByUserId: currentUser.Id,
+                performedByUserName: currentUser.DisplayName,
+                occurredAtUtc: returnedAtUtc);
 
+            // Create the asset status history.
             var assetHistory = new AssetHistory(
-                    assetId: asset.Id,
-                    action: nameof(Asset.ReturnFromExternalService),
-                    propertyName: nameof(Asset.AssetStatus),
-                    oldValue: previousAssetStatus.ToString(),
-                    newValue: asset.AssetStatus.ToString(),
-                    changedByUserId: currentUser.Id,
-                    changedByUserName: currentUser.DisplayName,
-                    changedAtUtc: returnedAtUtc);
+                assetId: asset.Id,
+                action: nameof(Asset.ReturnFromExternalService),
+                propertyName: nameof(Asset.AssetStatus),
+                oldValue: previousAssetStatus.ToString(),
+                newValue: asset.AssetStatus.ToString(),
+                changedByUserId: currentUser.Id,
+                changedByUserName: currentUser.DisplayName,
+                changedAtUtc: returnedAtUtc);
 
             await _serviceCaseRepository.AddEventAsync(serviceCaseEvent, cancellationToken);
+
+            // Build the Hungarian HTML description.
+            var noteDescription = BuildServiceDeskNoteDescription(
+                serviceCase,
+                serviceCaseEvent,
+                asset);
+
+            // Register the ServiceDesk request note.
+            // External synchronization is handled by the background processor.
+            var noteOutbox = ServiceDeskNoteOutbox.Create(
+                serviceCaseId: serviceCase.Id,
+                serviceCaseEventId: serviceCaseEvent.Id,
+                description: noteDescription,
+                createdAtUtc: returnedAtUtc);
+
+            await _noteOutboxRepository.AddAsync(noteOutbox, cancellationToken);
+
+            // Persist the asset history.
             await _assetHistoryRepository.AddRangeAsync([assetHistory], cancellationToken);
+
+            // Persist all changes within the protected transaction.
             await _serviceCaseRepository.SaveChangesAsync(cancellationToken);
 
             return CreateResponse(serviceCase, asset, currentUser, returnedAtUtc);
@@ -231,18 +246,82 @@ namespace AssetManagement.Application.ServiceCases.ReturnFromExternalService
 
             if (serviceCase.Status != ServiceCaseStatus.InExternalService)
             {
-                throw new ServiceCaseStateConflictException(serviceCase.Id, "Only a service case currently in external service can be returned from external service.");
+                throw new ServiceCaseStateConflictException(serviceCase.Id,
+                    "Only a service case currently in external service can be returned from external service.");
             }
 
             if (!serviceCase.VendorId.HasValue || serviceCase.VendorId.Value == Guid.Empty)
             {
-                throw new ServiceCaseStateConflictException(serviceCase.Id, "A valid vendor must be assigned before the return from external service can be recorded.");
+                throw new ServiceCaseStateConflictException(serviceCase.Id,
+                    "A valid vendor must be assigned before the return from external service can be recorded.");
             }
 
             if (asset.AssetStatus != AssetStatus.In_Service)
             {
-                throw new ServiceCaseStateConflictException(serviceCase.Id, "Only an asset currently in service can be returned from external service.");
+                throw new ServiceCaseStateConflictException(serviceCase.Id,
+                    "Only an asset currently in service can be returned from external service.");
             }
         }
+
+    /// <summary>
+    /// Builds the Hungarian HTML description for
+    /// returning an asset from external service.
+    /// </summary>
+    private static string BuildServiceDeskNoteDescription(ServiceCase serviceCase, ServiceCaseEvent serviceCaseEvent, Asset asset)
+    {
+        ArgumentNullException.ThrowIfNull(serviceCase);
+        ArgumentNullException.ThrowIfNull(serviceCaseEvent);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        static string Encode(string? value)
+        {
+            return System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(value) ? "Nincs megadva" : value);
+        }
+
+        var comment = Encode(serviceCaseEvent.Comment)
+            .Replace("\r\n", "\n")
+            .Replace("\n", "<br>");
+
+        return $"""
+            <div>
+                <h3>Visszaérkezett a külső szervizből</h3>
+
+                <p>
+                    <strong>Szervizügy:</strong>
+                    {Encode(serviceCase.CaseNumber)}
+                </p>
+
+                <p>
+                    <strong>Eszköz neve:</strong>
+                    {Encode(asset.AssetName)}
+                </p>
+
+                <p>
+                    <strong>Gyári szám:</strong>
+                    {Encode(asset.SerialNumber)}
+                </p>
+
+                <p>
+                    <strong>Korábbi állapot:</strong>
+                    {Encode(serviceCaseEvent.PreviousStatus?.ToString())}
+                </p>
+
+                <p>
+                    <strong>Új állapot:</strong>
+                    {Encode(serviceCaseEvent.NewStatus.ToString())}
+                </p>
+
+                <p>
+                    <strong>Műveletet végrehajtotta:</strong>
+                    {Encode(serviceCaseEvent.PerformedByUserName)}
+                </p>
+
+                <p>
+                    <strong>Megjegyzés:</strong><br>
+                    {comment}
+                </p>
+            </div>
+            """;
+    }
     }
 }

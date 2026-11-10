@@ -1,0 +1,305 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.service-desk-dashboard {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  margin: 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #002b51;
+}
+
+.page-header p {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.header-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #006ab2;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 14px;
+}
+
+.stat-card mat-icon {
+  color: #006ab2;
+}
+
+.stat-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-card span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.stat-card strong {
+  font-size: 26px;
+  color: #002b51;
+}
+
+.stat-card.success mat-icon {
+  color: #059669;
+}
+
+.stat-card.danger mat-icon {
+  color: #dc2626;
+}
+
+.stat-card.warning mat-icon {
+  color: #d97706;
+}
+
+.operations-card {
+  padding: 24px;
+  border-radius: 16px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #002b51;
+}
+
+.section-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.operations-table {
+  width: 100%;
+}
+
+.identifier {
+  font-family: monospace;
+  font-size: 12px;
+  color: #475569;
+}
+
+.status-badge {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-badge.completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-badge.pending {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-badge.processing {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-badge.reconciliation {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.loading-state p,
+.empty-state p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.empty-state mat-icon {
+  width: 42px;
+  height: 42px;
+  font-size: 42px;
+  color: #94a3b8;
+}
+
+.reconciliation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.reconciliation-panel {
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 16px;
+}
+
+.reconciliation-details {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow-wrap: anywhere;
+}
+
+.reconciliation-details p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.reconciliation-panel mat-form-field {
+  width: 100%;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .service-desk-dashboard {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+
+  .stats-grid,
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-card,
+  .reconciliation-panel {
+    padding: 16px;
+  }
+}
+/* Statistics cards */
+
+.service-desk-dashboard .stats-grid .stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 160px;
+  box-sizing: border-box;
+}
+
+.service-desk-dashboard .stats-grid .stat-card > mat-icon {
+  display: block;
+  flex-shrink: 0;
+  margin: 0 0 16px;
+}
+
+.service-desk-dashboard .stats-grid .stat-card > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.service-desk-dashboard .stats-grid .stat-card span {
+  display: block;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.service-desk-dashboard .stats-grid .stat-card strong {
+  display: block;
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
