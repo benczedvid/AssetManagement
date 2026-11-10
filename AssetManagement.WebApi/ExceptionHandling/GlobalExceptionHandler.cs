@@ -2,6 +2,7 @@
 using AssetManagement.Application.Employees;
 using AssetManagement.Application.Packages.Exceptions;
 using AssetManagement.Application.ServiceCases.Exceptions;
+using AssetManagement.Application.ServiceDesk.Exceptions;
 using AssetManagement.Application.Stores;
 using AssetManagement.Application.Users;
 using AssetManagement.Application.Vendors;
@@ -139,6 +140,12 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     "Access to the service case operation is denied.",
                     "The current user is not authorized to access this service case or perform the requested " +
                     "operation."),
+
+            ServiceDeskReconciliationConflictException => CreateServiceDeskProblemDetails(
+                    context,
+                    StatusCodes.Status409Conflict,
+                    "The ServiceDesk reconciliation conflicts with the current state.",
+                    "The outbox state or processing operation identifier has changed."),
 
             _ =>
                 CreateInternalServerErrorProblemDetails(context)
@@ -326,5 +333,16 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             context.Request.Path,
             statusCode,
             context.TraceIdentifier);
+    }
+    private static ProblemDetails CreateServiceDeskProblemDetails(HttpContext context, int statusCode, string title, string detail)
+    {
+        return new ProblemDetails
+        {
+            Type = ResolveProblemType(statusCode),
+            Status = statusCode,
+            Title = title,
+            Detail = detail,
+            Instance = context.Request.Path
+        };
     }
 }
