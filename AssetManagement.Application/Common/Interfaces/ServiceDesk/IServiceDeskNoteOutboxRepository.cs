@@ -92,4 +92,48 @@ public interface IServiceDeskNoteOutboxRepository
     /// Stale operations must never automatically return to Pending.
     /// </remarks>
     Task<bool> TryMarkStaleProcessingForReconciliationAsync(Guid outboxId, DateTime olderThanUtc, string reason, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Completes reconciliation after an administrator has verified
+    /// that the note exists in the external ServiceDesk request.
+    /// The state change and audit entry are persisted atomically.
+    /// </summary>
+    Task<bool> TryCompleteReconciliationAsync(
+        Guid outboxId,
+        Guid operationId,
+        string serviceDeskNoteId,
+        Guid verifiedByUserId,
+        string verifiedByUserName,
+        DateTime verifiedAtUtc,
+        string comment,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marks reconciliation as failed after an administrator has
+    /// verified that the note was not created externally.
+    /// The entry is not automatically retried.
+    /// The state change and audit entry are persisted atomically.
+    /// </summary>
+    Task<bool> TryFailReconciliationAsync(
+        Guid outboxId,
+        Guid operationId,
+        Guid verifiedByUserId,
+        string verifiedByUserName,
+        DateTime verifiedAtUtc,
+        string reason,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns a manually reconciled failed note to Pending
+    /// after an explicit administrator retry request.
+    /// The state change and audit entry are persisted atomically.
+    /// </summary>
+    Task<bool> TryRequestRetryAsync(
+        Guid outboxId,
+        Guid operationId,
+        Guid requestedByUserId,
+        string requestedByUserName,
+        DateTime requestedAtUtc,
+        string comment,
+        CancellationToken cancellationToken = default);
 }

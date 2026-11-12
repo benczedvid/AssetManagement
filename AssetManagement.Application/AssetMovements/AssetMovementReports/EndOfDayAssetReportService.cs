@@ -4,143 +4,207 @@ using System.Text;
 using AssetManagement.Application.Common.Email;
 using AssetManagement.Application.Common.Interfaces.AssetMovements;
 using AssetManagement.Application.Common.Interfaces.Email;
+using AssetManagement.Application.Common.Interfaces.Stores;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AssetManagement.Application.AssetMovements.AssetMovementReports;
 
-public sealed class EndOfDayAssetReportService : IDailyAssetReportService
+public sealed class EndOfDayAssetReportService : IEndOfDayAssetReportService
 {
     private readonly IUnreturnedEmployeeAssetReportRepository _reportRepository;
     private readonly IEmailSender _emailSender;
     private readonly EndOfDayAssetReportOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<EndOfDayAssetReportService> _logger;
+    private readonly IStoreRepository _storeRepository;
 
     public EndOfDayAssetReportService(
         IUnreturnedEmployeeAssetReportRepository reportRepository,
         IEmailSender emailSender,
         IOptions<EndOfDayAssetReportOptions> options,
         TimeProvider timeProvider,
-        ILogger<EndOfDayAssetReportService> logger)
+        ILogger<EndOfDayAssetReportService> logger,
+        IStoreRepository storeRepository)
     {
         ArgumentNullException.ThrowIfNull(reportRepository);
         ArgumentNullException.ThrowIfNull(emailSender);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(storeRepository);
 
         _reportRepository = reportRepository;
         _emailSender = emailSender;
         _options = options.Value;
         _timeProvider = timeProvider;
         _logger = logger;
+        _storeRepository = storeRepository;
     }
 
     public async Task<DailyAssetReportResult> SendAsync(CancellationToken cancellationToken)
     {
-        ValidateOptions();
-
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateOptions();
 
         var generatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         var reportRows = await _reportRepository.GetUnreturnedEmployeeAssetsAsync(cancellationToken);
-        var storeGroups = reportRows.GroupBy(
-                row => new
+        var stores = await _storeRepository.GetAllAsync(cancellationToken);
+        var groupsWithRows = reportRows
+            .GroupBy(row => new
+            {
+                row.StoreId,
+                row.StoreNumber,
+                row.StoreName
+            })
+            .Select(group => new
+            {
+                Key = group.Key,
+                Rows = group
+                    .OrderBy(row => row.EmployeeFullName)
+                    .ThenBy(row => row.CheckedOutAtUtc)
+                    .ToArray()
+            })
+            .ToArray();
+
+        var storeIdsWithRows = reportRows
+            .Select(row => row.StoreId)
+            .ToHashSet();
+
+        var emptyStoreGroups = stores
+            .Where(store => !storeIdsWithRows.Contains(store.Id))
+            .Select(store => new
+            {
+                Key = new
                 {
-                    row.StoreId,
-                    row.StoreNumber,
-                    row.StoreName
-                })
+                    StoreId = store.Id,
+                    StoreNumber = store.StoreNumber,
+                    StoreName = store.Name
+                },
+                Rows = Array.Empty<UnreturnedEmployeeAssetReportRow>()
+            });
+
+        var storeGroups = groupsWithRows
+            .Concat(emptyStoreGroups)
             .OrderBy(group => group.Key.StoreNumber)
+            .ThenBy(group => group.Key.StoreId)
             .ToArray();
 
         var sentEmailCount = 0;
         var skippedStoreCount = 0;
+        var storeFailures = new List<Exception>();
 
         foreach (var storeGroup in storeGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var rows = storeGroup
-                .OrderBy(row => row.EmployeeFullName)
-                .ThenBy(row => row.CheckedOutAtUtc)
-                .ToArray();
-
-            if (
-                rows.Length == 0 &&
-                !_options.SendEmptyReports)
-            {
-                skippedStoreCount++;
-                continue;
-            }
-
-            var recipientAddresses =ResolveRecipientAddresses(storeGroup.Key.StoreNumber);
-
-            var message = CreateEmailMessage(
-                storeNumber: storeGroup.Key.StoreNumber,
-                storeName: storeGroup.Key.StoreName,
-                recipientAddresses: recipientAddresses,
-                rows: rows,
-                generatedAtUtc: generatedAtUtc);
-
             try
             {
+                var rows = storeGroup.Rows;
+
+                if (rows.Length == 0 && !_options.SendEmptyReports)
+                {
+                    skippedStoreCount++;
+                    continue;
+                }
+
+                var recipientAddresses = ResolveRecipientAddresses(storeGroup.Key.StoreNumber);
+
+                var message = CreateEmailMessage(
+                    storeNumber: storeGroup.Key.StoreNumber,
+                    storeName: storeGroup.Key.StoreName,
+                    recipientAddresses: recipientAddresses,
+                    rows: rows,
+                    generatedAtUtc: generatedAtUtc);
+
                 await _emailSender.SendAsync(message, cancellationToken);
 
                 sentEmailCount++;
 
                 _logger.LogInformation(
-                    "The asset report was sent. " +
+                    "The asset report send operation completed. " +
                     "StoreId: {StoreId}, " +
                     "StoreNumber: {StoreNumber}, " +
-                    "Recipients: {Recipients}, " +
                     "RecipientCount: {RecipientCount}, " +
-                    "UnreturnedAssetCount: " +
-                    "{UnreturnedAssetCount}",
+                    "UnreturnedAssetCount: {UnreturnedAssetCount}",
                     storeGroup.Key.StoreId,
                     storeGroup.Key.StoreNumber,
-                    string.Join(
-                        ", ",
-                        recipientAddresses),
                     recipientAddresses.Count,
                     rows.Length);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    "The asset report run was cancelled. " +
+                    "StoreId: {StoreId}, " +
+                    "StoreNumber: {StoreNumber}, " +
+                    "SentEmailCount: {SentEmailCount}, " +
+                    "FailedStoreCount: {FailedStoreCount}",
+                    storeGroup.Key.StoreId,
+                    storeGroup.Key.StoreNumber,
+                    sentEmailCount,
+                    storeFailures.Count);
+
+                throw;
             }
             catch (Exception exception)
             {
                 _logger.LogError(
                     exception,
-                    "The asset report " +
-                    "could not be sent. " +
+                    "The asset report could not be prepared or sent. " +
+                    "Processing will continue with the next store. " +
                     "StoreId: {StoreId}, " +
-                    "StoreNumber: {StoreNumber}, " +
-                    "Recipients: {Recipients}, " +
-                    "RecipientCount: {RecipientCount}",
+                    "StoreNumber: {StoreNumber}",
                     storeGroup.Key.StoreId,
-                    storeGroup.Key.StoreNumber,
-                    string.Join(
-                        ", ",
-                        recipientAddresses),
-                    recipientAddresses.Count);
+                    storeGroup.Key.StoreNumber);
 
-                throw;
+                storeFailures.Add( new InvalidOperationException(
+                        $"The asset report failed for store " +
+                        $"'{storeGroup.Key.StoreNumber}' " +
+                        $"({storeGroup.Key.StoreId}).",
+                        exception));
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var result = new DailyAssetReportResult(
-                StoreCount: storeGroups.Length,
-                SentEmailCount: sentEmailCount,
-                SkippedStoreCount: skippedStoreCount,
-                UnreturnedAssetCount: reportRows.Count,
-                GeneratedAtUtc: generatedAtUtc);
+            StoreCount: storeGroups.Length,
+            SentEmailCount: sentEmailCount,
+            SkippedStoreCount: skippedStoreCount,
+            UnreturnedAssetCount: reportRows.Count,
+            GeneratedAtUtc: generatedAtUtc);
+
+        if (storeFailures.Count > 0)
+        {
+            _logger.LogWarning(
+                "The asset report run finished with store failures. " +
+                "StoreCount: {StoreCount}, " +
+                "SentEmailCount: {SentEmailCount}, " +
+                "SkippedStoreCount: {SkippedStoreCount}, " +
+                "FailedStoreCount: {FailedStoreCount}, " +
+                "UnreturnedAssetCount: {UnreturnedAssetCount}, " +
+                "GeneratedAtUtc: {GeneratedAtUtc}",
+                result.StoreCount,
+                result.SentEmailCount,
+                result.SkippedStoreCount,
+                storeFailures.Count,
+                result.UnreturnedAssetCount,
+                result.GeneratedAtUtc);
+
+            throw new AggregateException(
+                $"The asset report run finished with " +
+                $"{storeFailures.Count} store failure(s). " +
+                $"Completed email send operations: {sentEmailCount}.",
+                storeFailures);
+        }
 
         _logger.LogInformation(
-            "The  asset report run completed. " +
+            "The asset report run completed successfully. " +
             "StoreCount: {StoreCount}, " +
             "SentEmailCount: {SentEmailCount}, " +
             "SkippedStoreCount: {SkippedStoreCount}, " +
-            "UnreturnedAssetCount: " +
-            "{UnreturnedAssetCount}, " +
+            "UnreturnedAssetCount: {UnreturnedAssetCount}, " +
             "GeneratedAtUtc: {GeneratedAtUtc}",
             result.StoreCount,
             result.SentEmailCount,

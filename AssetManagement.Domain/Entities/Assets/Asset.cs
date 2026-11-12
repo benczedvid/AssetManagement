@@ -1,4 +1,5 @@
-﻿using AssetManagement.Domain.Entities.Stores;
+﻿using AssetManagement.Domain.Entities.Assets.Exceptions;
+using AssetManagement.Domain.Entities.Stores;
 using AssetManagement.Domain.Entities.Users;
 using AssetManagement.Domain.Entities.Vendors;
 
@@ -164,12 +165,12 @@ public sealed class Asset
 
         if (AssetType != AssetType.PDT)
         {
-            throw new InvalidOperationException("Csak PDT típusú eszköz vehető fel.");
+            throw new AssetStateConflictException("Only PDT assets can be checked out.");
         }
 
         if (AssetStatus != AssetStatus.In_Store)
         {
-            throw new InvalidOperationException("Csak áruházban lévő eszköz vehető fel.");
+            throw new AssetStateConflictException("Only an asset located in a store can be checked out.");
         }
 
         AssetStatus = AssetStatus.Used_In_Store;
@@ -182,17 +183,17 @@ public sealed class Asset
 
         if (AssetType != AssetType.PDT)
         {
-            throw new InvalidOperationException("Csak PDT típusú eszköz tehető le.");
+            throw new AssetStateConflictException("Only PDT assets can be returned.");
         }
 
         if (AssetStatus != AssetStatus.Used_In_Store)
         {
-            throw new InvalidOperationException("Csak használatban lévő eszköz tehető le.");
+            throw new AssetStateConflictException("Only an asset currently in use can be returned.");
         }
 
         if (!string.Equals(AssignedEmployeeNumber, employeeNumber.Trim(), StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Az eszközt nem ez a dolgozó vette fel.");
+            throw new AssetStateConflictException("The asset can only be returned by the employee who checked it out.");
         }
 
         AssetStatus = AssetStatus.In_Store;

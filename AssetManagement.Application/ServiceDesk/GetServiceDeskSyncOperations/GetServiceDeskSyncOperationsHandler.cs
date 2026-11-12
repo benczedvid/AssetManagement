@@ -20,7 +20,7 @@ public sealed class GetServiceDeskSyncOperationsHandler
         new(StringComparer.OrdinalIgnoreCase)
         {
             "RequestCreation",
-            "TaskCreation",
+            "NoteCreation",
             "RequestClosure"
         };
 

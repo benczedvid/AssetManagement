@@ -203,7 +203,7 @@ public sealed class DispatchToExternalServiceHandler
     {
         if (!serviceCase.VendorId.HasValue || serviceCase.VendorId.Value == Guid.Empty)
         {
-            throw new InvalidOperationException("The service case does not have a valid assigned vendor.");
+            throw new ServiceCaseStateConflictException("The service case does not have a valid assigned vendor.");
         }
 
         return new DispatchToExternalServiceResponse(
@@ -233,24 +233,22 @@ public sealed class DispatchToExternalServiceHandler
 
         if (serviceCase.AssetId != asset.Id)
         {
-            throw new InvalidOperationException("The service case and asset relationship is invalid.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "The service case and asset relationship is invalid.");
         }
 
         if (serviceCase.Status != ServiceCaseStatus.AwaitingExternalServiceDispatch)
         {
-            throw new ServiceCaseStateConflictException(
-                serviceCase.Id,
-                "Only a service case awaiting external service dispatch can be sent to external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "Only a service case awaiting external service dispatch can be sent to external service.");
         }
 
         if (!serviceCase.VendorId.HasValue || serviceCase.VendorId.Value == Guid.Empty)
         {
-            throw new InvalidOperationException("A vendor must be assigned before the service case can be sent to external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "A vendor must be assigned before the service case can be sent to external service.");
         }
 
         if (asset.AssetStatus != AssetStatus.In_HQ)
         {
-            throw new InvalidOperationException("Only an asset located at headquarters can be sent to external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "Only an asset located at headquarters can be sent to external service.");
         }
     }
 

@@ -1,10 +1,11 @@
-﻿using AssetManagement.Application.Common.Interfaces.AssetMovements;
+﻿using AssetManagement.Application.AssetMovements.Exceptions;
+using AssetManagement.Application.Assets;
+using AssetManagement.Application.Common.Interfaces.AssetMovements;
 using AssetManagement.Application.Common.Interfaces.Assets;
 using AssetManagement.Application.Common.Interfaces.Employees;
+using AssetManagement.Application.Employees;
 using AssetManagement.Domain.Entities.AssetMovements;
 using AssetManagement.Domain.Entities.Assets;
-using AssetManagement.Application.Assets;
-using AssetManagement.Application.Employees;
 
 namespace AssetManagement.Application.AssetMovements.CreateAssetMovement
 {
@@ -14,7 +15,10 @@ namespace AssetManagement.Application.AssetMovements.CreateAssetMovement
         private readonly IAssetMovementRepository _assetMovementRepository;
         private readonly IEmployeeRepository _employeeRepository;
 
-        public CreateAssetMovementHandler(IAssetMovementRepository assetMovementRepository, IAssetRepository assetRepository, IEmployeeRepository employeeRepository)
+        public CreateAssetMovementHandler(
+            IAssetMovementRepository assetMovementRepository,
+            IAssetRepository assetRepository,
+            IEmployeeRepository employeeRepository)
         {
             ArgumentNullException.ThrowIfNull(assetRepository);
             ArgumentNullException.ThrowIfNull(assetMovementRepository);
@@ -25,21 +29,28 @@ namespace AssetManagement.Application.AssetMovements.CreateAssetMovement
             _employeeRepository = employeeRepository;
         }
 
-        public async Task<CreateAssetMovementResponse> HandleAsync(CreateAssetMovementRequest request, CancellationToken cancellationToken) {
+        public async Task<CreateAssetMovementResponse> HandleAsync(CreateAssetMovementRequest request, CancellationToken cancellationToken)
+        {
             ArgumentNullException.ThrowIfNull(request);
 
-            var assignedAsset = await _assetRepository.GetByRfidTagIdAsync(request.RfidTagId, cancellationToken) ?? throw new AssetNotFoundException(request.RfidTagId);
-            var assignedEmployee = await _employeeRepository.GetByEmployeeNumberAsync(request.EmployeeNumber, cancellationToken) ?? throw new EmployeeNotFoundException(request.EmployeeNumber);
+            var assignedAsset = await _assetRepository.GetByRfidTagIdAsync(request.RfidTagId, cancellationToken) 
+                ?? throw new AssetNotFoundException(request.RfidTagId);
 
-            if (assignedAsset.AssetType != AssetType.PDT) {
-                throw new InvalidOperationException("Only PDT assets can be checked out or returned.");
+            var assignedEmployee = await _employeeRepository.GetByEmployeeNumberAsync(request.EmployeeNumber, cancellationToken)
+                ?? throw new EmployeeNotFoundException(request.EmployeeNumber);
+
+            if (assignedAsset.AssetType != AssetType.PDT)
+            {
+                throw new AssetMovementStateConflictException("Only PDT assets can be checked out or returned.");
             }
+
             var movementType = assignedAsset.AssetStatus switch
             {
                 AssetStatus.In_Store => AssetMovementType.Checkout,
+
                 AssetStatus.Used_In_Store => AssetMovementType.Return,
 
-                _ => throw new InvalidOperationException($"The asset cannot be moved while its status is {assignedAsset.AssetStatus}.")
+                _ => throw new AssetMovementStateConflictException($"The asset cannot be moved while its status is {assignedAsset.AssetStatus}.")
             };
 
             switch (movementType)
@@ -63,13 +74,11 @@ namespace AssetManagement.Application.AssetMovements.CreateAssetMovement
                 assetId: assignedAsset.Id,
                 storeId: assignedAsset.AssignedStoreId,
                 employeeNumber: assignedEmployee.EmployeeNumber,
-                type: movementType
-                );
+                type: movementType);
 
             await _assetMovementRepository.AddAsync(newAssetMovement, cancellationToken);
             await _assetMovementRepository.SaveChangesAsync(cancellationToken);
 
-            
             return new CreateAssetMovementResponse(
                 Id: newAssetMovement.Id,
                 AssetId: newAssetMovement.AssetId,
@@ -77,8 +86,7 @@ namespace AssetManagement.Application.AssetMovements.CreateAssetMovement
                 SerialNumber: assignedAsset.SerialNumber,
                 EmployeeNumber: newAssetMovement.EmployeeNumber,
                 Type: newAssetMovement.Type,
-                CreatedAtUtc: newAssetMovement.CreatedAtUtc
-                );
+                CreatedAtUtc: newAssetMovement.CreatedAtUtc);
         }
     }
 }

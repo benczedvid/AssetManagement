@@ -16,7 +16,6 @@ namespace AssetManagement.Domain.Entities.ServiceDesk;
 public sealed class ServiceDeskRequestOutbox
 {
     private const int MaximumSubjectLength = 250;
-    private const int MaximumDescriptionLength = 2000;
 
     public Guid Id { get; private set; }
     public Guid ServiceCaseId { get; private set; }
@@ -71,12 +70,6 @@ public sealed class ServiceDeskRequestOutbox
         if (description is null)
         {
             throw new ArgumentNullException(nameof(description));
-        }
-
-        if (description.Length > MaximumDescriptionLength)
-        {
-            throw new ArgumentException($"The ServiceDesk request description cannot exceed {MaximumDescriptionLength} characters.",
-                nameof(description));
         }
 
         if (createdAtUtc.Kind != DateTimeKind.Utc)

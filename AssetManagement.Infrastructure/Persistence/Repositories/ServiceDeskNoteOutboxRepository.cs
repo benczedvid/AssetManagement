@@ -272,6 +272,251 @@ public sealed class ServiceDeskNoteOutboxRepository  : IServiceDeskNoteOutboxRep
         return affectedRows == 1;
     }
 
+    public async Task<bool> TryCompleteReconciliationAsync(
+        Guid outboxId,
+        Guid operationId,
+        string serviceDeskNoteId,
+        Guid verifiedByUserId,
+        string verifiedByUserName,
+        DateTime verifiedAtUtc,
+        string comment,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifier(outboxId, nameof(outboxId));
+        ValidateIdentifier(operationId, nameof(operationId));
+        ValidateIdentifier(verifiedByUserId, nameof(verifiedByUserId));
+        ValidateUtcTimestamp(verifiedAtUtc, nameof(verifiedAtUtc));
+        ArgumentException.ThrowIfNullOrWhiteSpace(verifiedByUserName);
+
+        var normalizedNoteId = NormalizeNoteId(serviceDeskNoteId);
+        var normalizedComment = NormalizeError(comment);
+
+        await using var transaction = await _appDbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var outbox = await _appDbContext.ServiceDeskNoteOutbox
+            .AsNoTracking()
+            .Where(x =>
+                x.Id == outboxId &&
+                x.Status == ServiceDeskNoteOutboxStatus.RequiresReconciliation &&
+                x.ProcessingOperationId == operationId &&
+                x.ServiceDeskNoteId == null)
+            .Select(x => new
+            {
+                x.ServiceCaseId
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (outbox is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        var audit = ServiceDeskReconciliationAudit.Create(
+            operation: ServiceDeskReconciliationOperationType.NoteCreation,
+            outboxId: outboxId,
+            serviceCaseId: outbox.ServiceCaseId,
+            processingOperationId: operationId,
+            outcome: ServiceDeskReconciliationAuditOutcome.Completed,
+            externalIdentifier: normalizedNoteId,
+            verifiedByUserId: verifiedByUserId,
+            verifiedByUserName: verifiedByUserName,
+            verifiedAtUtc: verifiedAtUtc,
+            comment: normalizedComment);
+
+        var affectedRows = await _appDbContext.ServiceDeskNoteOutbox
+            .Where(x =>
+                x.Id == outboxId &&
+                x.Status == ServiceDeskNoteOutboxStatus.RequiresReconciliation &&
+                x.ProcessingOperationId == operationId &&
+                x.ServiceDeskNoteId == null)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.Status, ServiceDeskNoteOutboxStatus.Completed)
+                    .SetProperty(x => x.ServiceDeskNoteId, normalizedNoteId)
+                    .SetProperty(x => x.ProcessedAtUtc, verifiedAtUtc)
+                    .SetProperty(x => x.Error, (string?)null), cancellationToken);
+
+        if (affectedRows != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await _appDbContext.ServiceDeskReconciliationAudits.AddAsync(audit, cancellationToken);
+
+        await _appDbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task<bool> TryFailReconciliationAsync(
+        Guid outboxId,
+        Guid operationId,
+        Guid verifiedByUserId,
+        string verifiedByUserName,
+        DateTime verifiedAtUtc,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifier(outboxId, nameof(outboxId));
+        ValidateIdentifier(operationId, nameof(operationId));
+        ValidateIdentifier(verifiedByUserId, nameof(verifiedByUserId));
+        ValidateUtcTimestamp(verifiedAtUtc, nameof(verifiedAtUtc));
+        ArgumentException.ThrowIfNullOrWhiteSpace(verifiedByUserName);
+
+        var normalizedReason = NormalizeError(reason);
+
+        await using var transaction = await _appDbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var outbox = await _appDbContext.ServiceDeskNoteOutbox
+            .AsNoTracking()
+            .Where(x =>
+                x.Id == outboxId &&
+                x.Status == ServiceDeskNoteOutboxStatus.RequiresReconciliation &&
+                x.ProcessingOperationId == operationId &&
+                x.ServiceDeskNoteId == null)
+            .Select(x => new
+            {
+                x.ServiceCaseId
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (outbox is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        var audit = ServiceDeskReconciliationAudit.Create(
+            operation: ServiceDeskReconciliationOperationType.NoteCreation,
+            outboxId: outboxId,
+            serviceCaseId: outbox.ServiceCaseId,
+            processingOperationId: operationId,
+            outcome: ServiceDeskReconciliationAuditOutcome.Failed,
+            externalIdentifier: null,
+            verifiedByUserId: verifiedByUserId,
+            verifiedByUserName: verifiedByUserName,
+            verifiedAtUtc: verifiedAtUtc,
+            comment: normalizedReason);
+
+        var affectedRows = await _appDbContext.ServiceDeskNoteOutbox
+            .Where(x =>
+                x.Id == outboxId &&
+                x.Status == ServiceDeskNoteOutboxStatus.RequiresReconciliation &&
+                x.ProcessingOperationId == operationId &&
+                x.ServiceDeskNoteId == null)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.Status, ServiceDeskNoteOutboxStatus.Failed)
+                    .SetProperty(x => x.ProcessedAtUtc, verifiedAtUtc)
+                    .SetProperty(x => x.Error, normalizedReason),
+                cancellationToken);
+
+        if (affectedRows != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await _appDbContext.ServiceDeskReconciliationAudits.AddAsync(audit, cancellationToken);
+
+        await _appDbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task<bool> TryRequestRetryAsync(
+        Guid outboxId,
+        Guid operationId,
+        Guid requestedByUserId,
+        string requestedByUserName,
+        DateTime requestedAtUtc,
+        string comment,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifier(outboxId, nameof(outboxId));
+        ValidateIdentifier(operationId, nameof(operationId));
+        ValidateIdentifier(requestedByUserId, nameof(requestedByUserId));
+        ValidateUtcTimestamp(requestedAtUtc, nameof(requestedAtUtc));
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestedByUserName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(comment);
+
+        var normalizedComment = comment.Trim();
+
+        if (normalizedComment.Length > MaximumErrorLength)
+        {
+            throw new ArgumentException($"The retry comment cannot exceed {MaximumErrorLength} characters.", nameof(comment));
+        }
+
+        await using var transaction = await _appDbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var eligibleOutbox = _appDbContext.ServiceDeskNoteOutbox
+            .Where(outbox =>
+                outbox.Id == outboxId &&
+                outbox.Status == ServiceDeskNoteOutboxStatus.Failed &&
+                outbox.ProcessingOperationId == operationId &&
+                outbox.ServiceDeskNoteId == null &&
+                _appDbContext.ServiceDeskReconciliationAudits.Any(audit =>
+                    audit.Operation == ServiceDeskReconciliationOperationType.NoteCreation &&
+                    audit.OutboxId == outbox.Id &&
+                    audit.ServiceCaseId == outbox.ServiceCaseId &&
+                    audit.ProcessingOperationId == operationId &&
+                    audit.Outcome == ServiceDeskReconciliationAuditOutcome.Failed &&
+                    audit.ExternalIdentifier == null));
+
+        var entry = await eligibleOutbox
+            .AsNoTracking()
+            .Select(outbox => new
+            {
+                outbox.ServiceCaseId
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (entry is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        var retryAudit = ServiceDeskReconciliationAudit.Create(
+            operation: ServiceDeskReconciliationOperationType.NoteCreation,
+            outboxId: outboxId,
+            serviceCaseId: entry.ServiceCaseId,
+            processingOperationId: operationId,
+            outcome: ServiceDeskReconciliationAuditOutcome.RetryRequested,
+            externalIdentifier: null,
+            verifiedByUserId: requestedByUserId,
+            verifiedByUserName: requestedByUserName,
+            verifiedAtUtc: requestedAtUtc,
+            comment: normalizedComment);
+
+        var affectedRows = await eligibleOutbox
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(outbox => outbox.Status, ServiceDeskNoteOutboxStatus.Pending)
+                    .SetProperty(outbox => outbox.ProcessingOperationId, (Guid?)null)
+                    .SetProperty(outbox => outbox.ProcessingStartedAtUtc, (DateTime?)null)
+                    .SetProperty(outbox => outbox.ProcessedAtUtc, (DateTime?)null)
+                    .SetProperty(outbox => outbox.Error, (string?)null), cancellationToken);
+
+        if (affectedRows != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await _appDbContext.ServiceDeskReconciliationAudits.AddAsync(retryAudit, cancellationToken);
+
+        await _appDbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return true;
+    }
+
     private static void ValidateIdentifier(Guid identifier, string parameterName)
     {
         if (identifier == Guid.Empty)

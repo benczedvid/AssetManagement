@@ -1,6 +1,8 @@
 using AssetManagement.Application.Common.Authorization;
 using AssetManagement.Application.ServiceDesk.GetServiceDeskSyncOperations;
 using AssetManagement.Application.ServiceDesk.ReconcileServiceDeskRequest;
+using AssetManagement.Application.ServiceDesk.Reconciliation;
+using AssetManagement.Application.ServiceDesk.RequestServiceDeskNoteRetry;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web.Resource;
@@ -11,7 +13,7 @@ namespace AssetManagement.WebApi.Controllers;
 /// Provides API endpoints for ServiceDesk Plus integration management.
 /// </summary>
 /// <remarks>
-/// ServiceDesk request creation and task synchronization
+/// ServiceDesk request creation and note synchronization
 /// are handled automatically by background processing.
 ///
 /// This controller exposes administrative reconciliation
@@ -102,7 +104,7 @@ public sealed class ServiceDeskController : ControllerBase
     /// <remarks>
     /// Returns synchronization operations from:
     /// - ServiceDesk request creation,
-    /// - ServiceDesk task creation,
+    /// - ServiceDesk note creation,
     /// - ServiceDesk request closure.
     ///
     /// Results can be filtered by status, operation type,
@@ -153,6 +155,75 @@ public sealed class ServiceDeskController : ControllerBase
             [FromServices] GetServiceDeskSyncOperationsHandler handler,
             CancellationToken cancellationToken)
     {
+        var response = await handler.HandleAsync(request, cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Resolves an uncertain ServiceDesk outbox operation.
+    /// </summary>
+    /// <remarks>
+    /// Supports request creation, note creation, and request closure.
+    ///
+    /// The external result must be independently verified
+    /// before this endpoint is called.
+    ///
+    /// This operation records the verified result and its audit entry.
+    /// It does not create notes or requests, close requests,
+    /// or automatically retry external operations.
+    /// </remarks>
+    [HttpPost("operations/reconcile")]
+    [Authorize(Policy = AuthorizationPolicies.ManageAllServiceCases)]
+    [Consumes("application/json")]
+    [Produces("application/json")]
+    [ProducesResponseType<ResolveServiceDeskReconciliationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ResolveServiceDeskReconciliationResponse>>ResolveServiceDeskReconciliation(
+            [FromBody] ResolveServiceDeskReconciliationRequest request,
+            [FromServices] ResolveServiceDeskReconciliationHandler handler,
+            CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var response = await handler.HandleAsync(request, cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Requests a retry for a manually reconciled failed note.
+    /// </summary>
+    /// <remarks>
+    /// Requires a failed manual reconciliation audit matching
+    /// the supplied processing operation identifier.
+    ///
+    /// The state change and retry audit are persisted atomically.
+    ///
+    /// This endpoint does not call the external ServiceDesk API.
+    /// The background processor handles the pending note.
+    /// </remarks>
+    [HttpPost("notes/retry")]
+    [Authorize(Policy = AuthorizationPolicies.ManageAllServiceCases)]
+    [Consumes("application/json")]
+    [Produces("application/json")]
+    [ProducesResponseType<RequestServiceDeskNoteRetryResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<RequestServiceDeskNoteRetryResponse>>RequestServiceDeskNoteRetry(
+            [FromBody] RequestServiceDeskNoteRetryRequest request,
+            [FromServices] RequestServiceDeskNoteRetryHandler handler,
+            CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
         var response = await handler.HandleAsync(request, cancellationToken);
 
         return Ok(response);

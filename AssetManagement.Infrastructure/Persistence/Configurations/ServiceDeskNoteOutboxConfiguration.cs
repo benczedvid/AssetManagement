@@ -21,7 +21,7 @@ public sealed class ServiceDeskNoteOutboxConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.ServiceCaseId).IsRequired();
         builder.Property(x => x.ServiceCaseEventId).IsRequired();
         builder.Property(x => x.ServiceDeskNoteId).HasMaxLength(100).IsRequired(false);
-        builder.Property(x => x.Description).HasMaxLength(4000).IsRequired();
+        builder.Property(x => x.Description).HasColumnType("nvchar(max)").IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.ProcessingStartedAtUtc).IsRequired(false);

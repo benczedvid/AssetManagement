@@ -650,8 +650,7 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasColumnType("nvchar(max)");
 
                     b.Property<string>("Error")
                         .HasMaxLength(1000)
@@ -808,8 +807,7 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvchar(max)");
 
                     b.Property<string>("Error")
                         .HasMaxLength(1000)

@@ -9,8 +9,7 @@ namespace AssetManagement.Infrastructure.Persistence.Repositories;
 /// Provides persistence operations for automatic
 /// ServiceDesk request creation.
 /// </summary>
-public sealed class ServiceDeskRequestOutboxRepository
-    : IServiceDeskRequestOutboxRepository
+public sealed class ServiceDeskRequestOutboxRepository : IServiceDeskRequestOutboxRepository
 {
     private const int MaximumBatchSize = 100;
     private const int MaximumRequestIdLength = 100;
@@ -470,6 +469,82 @@ public sealed class ServiceDeskRequestOutboxRepository
         await _appDbContext.ServiceDeskReconciliationAudits.AddAsync(audit, cancellationToken);
 
         await _appDbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task<bool> TryFailBeforeSendAsync(
+        Guid outboxId,
+        Guid operationId,
+        string reason,
+        DateTime failedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifier(outboxId, nameof(outboxId));
+        ValidateIdentifier(operationId, nameof(operationId));
+        ValidateUtcTimestamp(failedAtUtc, nameof(failedAtUtc));
+
+        var normalizedReason = NormalizeError(reason);
+
+        await using var transaction = await _appDbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var outbox = await _appDbContext.ServiceDeskRequestOutbox
+            .AsNoTracking()
+            .Where(x =>
+                x.Id == outboxId &&
+                x.Status == ServiceDeskRequestOutboxStatus.Processing &&
+                x.ProcessingOperationId == operationId &&
+                x.ServiceDeskRequestId == null)
+            .Select(x => new
+            {
+                x.ServiceCaseId
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (outbox is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        var outboxRows = await _appDbContext.ServiceDeskRequestOutbox
+            .Where(x =>
+                x.Id == outboxId &&
+                x.Status == ServiceDeskRequestOutboxStatus.Processing &&
+                x.ProcessingOperationId == operationId &&
+                x.ServiceDeskRequestId == null)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.Status, ServiceDeskRequestOutboxStatus.Failed)
+                    .SetProperty(x => x.ProcessedAtUtc, failedAtUtc)
+                    .SetProperty(x => x.Error, normalizedReason),
+                cancellationToken);
+
+        if (outboxRows != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        var serviceCaseRows = await _appDbContext.ServiceCases
+            .Where(x =>
+                x.Id == outbox.ServiceCaseId &&
+                x.ServiceDeskRequestId == null &&
+                x.ServiceDeskSyncStatus == ServiceDeskSyncStatus.NotStarted)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.ServiceDeskSyncStatus, ServiceDeskSyncStatus.Failed)
+                    .SetProperty(x => x.ServiceDeskSyncCompletedAtUtc, (DateTime?)null)
+                    .SetProperty(x => x.ServiceDeskSyncError, normalizedReason),
+                cancellationToken);
+
+        if (serviceCaseRows != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
         await transaction.CommitAsync(cancellationToken);
 
         return true;

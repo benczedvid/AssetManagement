@@ -63,49 +63,86 @@ public sealed class ServiceDeskClient : IServiceDeskClient
     /// <exception cref="InvalidOperationException">
     /// Thrown when the ServiceDesk API returns an invalid response.
     /// </exception>
-    public async Task<string> CreateRequestAsync(string subject, ApplicationUser requester, string description, AssetType assetType, CancellationToken cancellationToken = default)
+    public async Task<string> CreateRequestAsync(
+        string subject,
+        ApplicationUser requester,
+        string description,
+        AssetType assetType,
+        CancellationToken cancellationToken = default)
     {
-        ValidateRequest(subject);
+        var creationSendInvoked = false;
 
-        var categoryId = await ResolveCategoryIdAsync(AssetCategoryName, cancellationToken);
-        var subcategoryId = await ResolveSubcategoryIdAsync(categoryId, assetType.ToString(), cancellationToken);
-        var payload = BuildCreateRequestPayload(subject, requester, description, categoryId, subcategoryId);
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-
-        using var content = new FormUrlEncodedContent(
-            new Dictionary<string, string>
-            {
-                ["input_data"] = json
-            });
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, RequestsEndpoint);
-        request.Headers.TryAddWithoutValidation("authtoken", _options.ApiKey);
-
-        request.Content = content;
-
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var errorBody = await response.Content.ReadAsStringAsync(
-                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            throw new HttpRequestException(
-                $"ServiceDesk Plus request creation failed. " +
-                $"HTTP {(int)response.StatusCode} " +
-                $"({response.ReasonPhrase}). " +
-                $"Response: {errorBody}",
-                null,
-                response.StatusCode);
+            ValidateRequest(subject);
+
+            ArgumentNullException.ThrowIfNull(requester);
+
+            if (string.IsNullOrWhiteSpace(requester.DisplayName))
+            {
+                throw new ArgumentException("The ServiceDesk requester name cannot be empty.", nameof(requester));
+            }
+
+            var categoryId = await ResolveCategoryIdAsync(AssetCategoryName, cancellationToken);
+
+            var subcategoryId = await ResolveSubcategoryIdAsync(categoryId, assetType.ToString(), cancellationToken);
+
+            var payload = BuildCreateRequestPayload(
+                subject,
+                requester,
+                description,
+                categoryId,
+                subcategoryId);
+
+            var json = JsonSerializer.Serialize(payload, JsonOptions);
+
+            using var content = new FormUrlEncodedContent(
+                new Dictionary<string, string>
+                {
+                    ["input_data"] = json
+                });
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, RequestsEndpoint);
+
+            request.Headers.TryAddWithoutValidation("authtoken", _options.ApiKey);
+
+            request.Content = content;
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // From this point onward, the external creation result
+            // must be treated as potentially uncertain.
+            creationSendInvoked = true;
+
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync( cancellationToken);
+
+                throw new HttpRequestException(
+                    $"ServiceDesk Plus request creation failed. " +
+                    $"HTTP {(int)response.StatusCode} " +
+                    $"({response.ReasonPhrase}). " +
+                    $"Response: {errorBody}",
+                    null,
+                    response.StatusCode);
+            }
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+            using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken);
+
+            ValidateApiResponse(document.RootElement);
+
+            return ExtractRequestId(document.RootElement);
         }
-
-        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
-        using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken);
-
-        ValidateApiResponse(document.RootElement);
-
-        return ExtractRequestId(document.RootElement);
+        catch (Exception exception) when (!creationSendInvoked)
+        {
+            throw new ServiceDeskRequestNotSentException("ServiceDesk request creation failed before the creation POST was invoked.", exception);
+        }
     }
 
     private static object BuildCreateRequestPayload(
@@ -267,33 +304,23 @@ public sealed class ServiceDeskClient : IServiceDeskClient
             throw new InvalidOperationException("ServiceDesk Plus response does not contain a request object.");
         }
 
-
-
         if (!requestElement.TryGetProperty("id", out var idElement))
         {
             throw new InvalidOperationException("ServiceDesk Plus response does not contain a request identifier.");
         }
-
-
 
         var requestId = idElement.ValueKind switch
         {
             JsonValueKind.String => idElement.GetString(),
             JsonValueKind.Number => idElement.GetRawText(),
 
-
-
             _ => null
         };
-
-
 
         if (string.IsNullOrWhiteSpace(requestId))
         {
             throw new InvalidOperationException("ServiceDesk Plus returned an empty request identifier.");
         }
-
-
 
         return requestId;
     }

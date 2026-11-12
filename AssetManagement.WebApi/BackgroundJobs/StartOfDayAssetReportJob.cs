@@ -1,4 +1,5 @@
 using AssetManagement.Application.Common.Interfaces.AssetMovements;
+using Microsoft.Extensions.Logging;
 using Quartz;
 
 namespace AssetManagement.WebApi.BackgroundJobs
@@ -6,10 +7,12 @@ namespace AssetManagement.WebApi.BackgroundJobs
     [DisallowConcurrentExecution]
     public sealed class StartOfDayAssetReportJob : IJob
     {
-        private readonly IDailyAssetReportService _reportService;
+        private readonly IStartOfDayAssetReportService _reportService;
         private readonly ILogger<StartOfDayAssetReportJob> _logger;
 
-        public StartOfDayAssetReportJob(IDailyAssetReportService reportService, ILogger<StartOfDayAssetReportJob> logger)
+        public StartOfDayAssetReportJob(
+            IStartOfDayAssetReportService reportService,
+            ILogger<StartOfDayAssetReportJob> logger)
         {
             ArgumentNullException.ThrowIfNull(reportService);
             ArgumentNullException.ThrowIfNull(logger);
@@ -18,7 +21,9 @@ namespace AssetManagement.WebApi.BackgroundJobs
             _logger = logger;
         }
 
-        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        public async ValueTask Execute(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(context);
 
@@ -47,14 +52,21 @@ namespace AssetManagement.WebApi.BackgroundJobs
                     result.UnreturnedAssetCount,
                     result.GeneratedAtUtc);
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
             {
                 _logger.LogWarning(
-                    "The start-of-day asset report job was cancelled. FireInstanceId: {FireInstanceId}", context.FireInstanceId);
+                    "The start-of-day asset report job was cancelled. " +
+                    "FireInstanceId: {FireInstanceId}",
+                    context.FireInstanceId);
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "The start-of-day asset report job failed. FireInstanceId: {FireInstanceId}", context.FireInstanceId);
+                _logger.LogError(
+                    exception,
+                    "The start-of-day asset report job failed. " +
+                    "FireInstanceId: {FireInstanceId}",
+                    context.FireInstanceId);
 
                 throw new JobExecutionException(exception)
                 {

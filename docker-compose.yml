@@ -13,7 +13,7 @@ services:
 
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:${API_CONTAINER_PORT:-8080}
+      ASPNETCORE_HTTP_PORTS: ${API_CONTAINER_PORT:-8080}
 
       ConnectionStrings__AssetManagementDatabase: ${DATABASE_CONNECTION_STRING}
 
@@ -25,7 +25,7 @@ services:
 
       MicrosoftGraphEmail__TenantId: ${MICROSOFTGRAPHEMAIL_TENANTID}
       MicrosoftGraphEmail__ClientId: ${MICROSOFTGRAPHEMAIL_CLIENTID}
-      MicrosoftGraphEmail__CLientSecret: ${MICROSOFTGRAPHEMAIL_CLIENTSECRET}
+      MicrosoftGraphEmail__ClientSecret: ${MICROSOFTGRAPHEMAIL_CLIENTSECRET}
       MicrosoftGraphEmail__SendUserPrincipalName: ${MICROSOFTGRAPHEMAIL_SENDERUSERPRINCIPALNAME}
       
       AllowedHosts: ${ALLOWED_HOSTS}

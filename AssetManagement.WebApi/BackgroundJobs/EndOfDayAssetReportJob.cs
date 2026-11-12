@@ -1,4 +1,5 @@
 ﻿using AssetManagement.Application.Common.Interfaces.AssetMovements;
+using Microsoft.Extensions.Logging;
 using Quartz;
 
 namespace AssetManagement.WebApi.BackgroundJobs
@@ -6,11 +7,11 @@ namespace AssetManagement.WebApi.BackgroundJobs
     [DisallowConcurrentExecution]
     public sealed class EndOfDayAssetReportJob : IJob
     {
-        private readonly IDailyAssetReportService _reportService;
+        private readonly IEndOfDayAssetReportService _reportService;
         private readonly ILogger<EndOfDayAssetReportJob> _logger;
 
         public EndOfDayAssetReportJob(
-            IDailyAssetReportService reportService,
+            IEndOfDayAssetReportService reportService,
             ILogger<EndOfDayAssetReportJob> logger)
         {
             ArgumentNullException.ThrowIfNull(reportService);
@@ -51,13 +52,21 @@ namespace AssetManagement.WebApi.BackgroundJobs
                     result.UnreturnedAssetCount,
                     result.GeneratedAtUtc);
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
             {
-                _logger.LogWarning("The end-of-day asset report job was cancelled. FireInstanceId: {FireInstanceId}", context.FireInstanceId);
+                _logger.LogWarning(
+                    "The end-of-day asset report job was cancelled. " +
+                    "FireInstanceId: {FireInstanceId}",
+                    context.FireInstanceId);
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "The end-of-day asset report job failed. FireInstanceId: {FireInstanceId}", context.FireInstanceId);
+                _logger.LogError(
+                    exception,
+                    "The end-of-day asset report job failed. " +
+                    "FireInstanceId: {FireInstanceId}",
+                    context.FireInstanceId);
 
                 throw new JobExecutionException(exception)
                 {

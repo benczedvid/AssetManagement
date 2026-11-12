@@ -128,6 +128,7 @@ public sealed class ServiceDeskRequestOutboxProcessor
             operationId);
 
         ServiceDeskRequestOutbox? outbox = null;
+        var clientCallStarted = false;
 
         try
         {
@@ -189,8 +190,10 @@ public sealed class ServiceDeskRequestOutboxProcessor
                 operationId,
                 outbox.ServiceCaseId);
 
-            // 5. Create the external ServiceDesk request.
             // Never automatically retry this POST operation.
+            clientCallStarted = true;
+            
+            // 5. Create the external ServiceDesk request.
             var serviceDeskRequestId = await _serviceDeskClient.CreateRequestAsync(
                     subject: outbox.Subject,
                     requester: requester,
@@ -231,13 +234,43 @@ public sealed class ServiceDeskRequestOutboxProcessor
                 outbox.ServiceCaseId,
                 normalizedRequestId);
         }
+
+        catch (ServiceDeskRequestNotSentException exception)
+        {
+            _logger.LogError(
+                exception,
+                "ServiceDesk request creation failed before the creation POST. " +
+                "OutboxId: {OutboxId}, OperationId: {OperationId}",
+                outboxId,
+                operationId);
+
+            await TryMarkFailedBeforeSendAsync(
+                outboxId,
+                operationId,
+                "The creation POST was not invoked. " +
+                (exception.InnerException?.Message ?? exception.Message));
+
+            // The client wraps cancellation occurring before the POST.
+            // Preserve host shutdown cancellation after persisting the state.
+            cancellationToken.ThrowIfCancellationRequested();
+        }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
         {
-            await TryMarkRequiresReconciliationAsync(
-                outboxId,
-                operationId,
-                "Request creation processing was cancelled before the external result could be confirmed.");
+            if (clientCallStarted)
+            {
+                await TryMarkRequiresReconciliationAsync(
+                   outboxId,
+                    operationId,
+                    "Request creation processing was cancelled before the external result could be confirmed.");
+            }
+            else
+            {
+                await TryMarkFailedBeforeSendAsync(
+                    outboxId,
+                    operationId,
+                    "Request creation processing was cancelled before the ServiceDesk client was called.");
+            }
 
             throw;
         }
@@ -253,7 +286,18 @@ public sealed class ServiceDeskRequestOutboxProcessor
                 operationId,
                 outbox?.ServiceCaseId);
 
-            await TryMarkRequiresReconciliationAsync(outboxId, operationId, ReconciliationRequiredMessage);
+            if (clientCallStarted)
+            {
+                await TryMarkRequiresReconciliationAsync(outboxId, operationId, ReconciliationRequiredMessage);
+            }
+            else
+            {
+                await TryMarkFailedBeforeSendAsync(
+                    outboxId,
+                    operationId,
+                    "The ServiceDesk client was not called. " +
+                    exception.Message);
+            }
         }
     }
 
@@ -286,6 +330,39 @@ public sealed class ServiceDeskRequestOutboxProcessor
             _logger.LogError(
                 exception,
                 "Failed to persist reconciliation state for " +
+                "ServiceDesk request outbox entry {OutboxId}. " +
+                "OperationId: {OperationId}",
+                outboxId,
+                operationId);
+        }
+    }
+
+    private async Task TryMarkFailedBeforeSendAsync(Guid outboxId, Guid operationId, string reason)
+    {
+        try
+        {
+            var updated = await _outboxRepository.TryFailBeforeSendAsync(
+                outboxId,
+                operationId,
+                reason,
+                DateTime.UtcNow,
+                CancellationToken.None);
+
+            if (!updated)
+            {
+                _logger.LogWarning(
+                    "Could not mark ServiceDesk request outbox entry " +
+                    "{OutboxId} as failed before sending. " +
+                    "OperationId: {OperationId}",
+                    outboxId,
+                    operationId);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to persist the pre-send failure for " +
                 "ServiceDesk request outbox entry {OutboxId}. " +
                 "OperationId: {OperationId}",
                 outboxId,

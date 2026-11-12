@@ -23,23 +23,28 @@ public sealed class ResolveServiceDeskReconciliationHandler
 {
     private const int MaximumRequestIdLength = 100;
     private const int MaximumCommentLength = 1000;
+    private const int MaximumNoteIdLength = 100;
 
     private readonly IServiceDeskRequestOutboxRepository _requestOutboxRepository;
     private readonly IServiceDeskRequestClosureOutboxRepository _closureOutboxRepository;
     private readonly ICurrentApplicationUserResolver _currentApplicationUserResolver;
+    private readonly IServiceDeskNoteOutboxRepository _noteOutboxRepository;
 
     public ResolveServiceDeskReconciliationHandler(
         IServiceDeskRequestOutboxRepository requestOutboxRepository,
         IServiceDeskRequestClosureOutboxRepository closureOutboxRepository,
-        ICurrentApplicationUserResolver currentApplicationUserResolver)
+        ICurrentApplicationUserResolver currentApplicationUserResolver,
+        IServiceDeskNoteOutboxRepository serviceDeskNoteOutboxRepository)
     {
         ArgumentNullException.ThrowIfNull(requestOutboxRepository);
         ArgumentNullException.ThrowIfNull(closureOutboxRepository);
         ArgumentNullException.ThrowIfNull(currentApplicationUserResolver);
+        ArgumentNullException.ThrowIfNull(serviceDeskNoteOutboxRepository);
 
         _requestOutboxRepository = requestOutboxRepository;
         _closureOutboxRepository = closureOutboxRepository;
         _currentApplicationUserResolver = currentApplicationUserResolver;
+        _noteOutboxRepository = serviceDeskNoteOutboxRepository;
     }
 
     /// <summary>
@@ -115,6 +120,27 @@ public sealed class ResolveServiceDeskReconciliationHandler
                     request.VerificationComment,
                     cancellationToken),
 
+            (ServiceDeskReconciliationOperation.NoteCreation, ServiceDeskReconciliationOutcome.Completed) => await _noteOutboxRepository
+                .TryCompleteReconciliationAsync(
+                    request.OutboxId,
+                    request.ProcessingOperationId,
+                    request.ServiceDeskNoteId!,
+                    currentUser.Id,
+                    currentUser.DisplayName,
+                    verifiedAtUtc,
+                    request.VerificationComment,
+                    cancellationToken),
+
+            (ServiceDeskReconciliationOperation.NoteCreation, ServiceDeskReconciliationOutcome.Failed) => await _noteOutboxRepository
+                .TryFailReconciliationAsync(
+                    request.OutboxId,
+                    request.ProcessingOperationId,
+                    currentUser.Id,
+                    currentUser.DisplayName,
+                    verifiedAtUtc,
+                    request.VerificationComment,
+                    cancellationToken),
+
             _ => throw new ArgumentOutOfRangeException(nameof(request), "The reconciliation operation or outcome is invalid.")
         };
 
@@ -171,18 +197,14 @@ public sealed class ResolveServiceDeskReconciliationHandler
                 nameof(request.ServiceDeskRequestId));
         }
 
-        if (request.Outcome == ServiceDeskReconciliationOutcome.Failed &&
-            !string.IsNullOrWhiteSpace(request.ServiceDeskRequestId))
+        if (request.Outcome == ServiceDeskReconciliationOutcome.Failed && !string.IsNullOrWhiteSpace(request.ServiceDeskRequestId))
         {
-            throw new ArgumentException(
-                "The ServiceDesk request identifier must be empty when reconciliation is marked as Failed.", nameof(request.ServiceDeskRequestId));
+            throw new ArgumentException("The ServiceDesk request identifier must be empty when reconciliation is marked as Failed.", nameof(request.ServiceDeskRequestId));
         }
 
-        if (request.Operation == ServiceDeskReconciliationOperation.RequestClosure &&
-            !string.IsNullOrWhiteSpace(request.ServiceDeskRequestId))
+        if (request.Operation == ServiceDeskReconciliationOperation.RequestClosure && !string.IsNullOrWhiteSpace(request.ServiceDeskRequestId))
         {
-            throw new ArgumentException(
-                "The ServiceDesk request identifier must not be provided for request closure reconciliation.",
+            throw new ArgumentException("The ServiceDesk request identifier must not be provided for request closure reconciliation.",
                 nameof(request.ServiceDeskRequestId));
         }
 
@@ -195,6 +217,40 @@ public sealed class ResolveServiceDeskReconciliationHandler
         if (!Enum.IsDefined(request.Outcome))
         {
             throw new ArgumentOutOfRangeException(nameof(request.Outcome), "The reconciliation outcome is invalid.");
+        }
+
+        if (request.ServiceDeskNoteId is not null && request.ServiceDeskNoteId.Trim().Length > MaximumNoteIdLength)
+        {
+            throw new ArgumentException($"The ServiceDesk note identifier cannot exceed {MaximumNoteIdLength} characters.",
+                nameof(request.ServiceDeskNoteId));
+        }
+
+        if (request.Operation == ServiceDeskReconciliationOperation.NoteCreation)
+        {
+            if (!string.IsNullOrWhiteSpace(request.ServiceDeskRequestId))
+            {
+                throw new ArgumentException("The ServiceDesk request identifier must not be provided for note creation reconciliation.",
+                    nameof(request.ServiceDeskRequestId));
+            }
+
+            if (request.Outcome == ServiceDeskReconciliationOutcome.Completed &&
+                string.IsNullOrWhiteSpace(request.ServiceDeskNoteId))
+            {
+                throw new ArgumentException("Completed note creation reconciliation requires the verified ServiceDesk note identifier.",
+                    nameof(request.ServiceDeskNoteId));
+            }
+
+            if (request.Outcome == ServiceDeskReconciliationOutcome.Failed &&
+                !string.IsNullOrWhiteSpace(request.ServiceDeskNoteId))
+            {
+                throw new ArgumentException("The ServiceDesk note identifier must be empty when reconciliation is marked as Failed.",
+                    nameof(request.ServiceDeskNoteId));
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(request.ServiceDeskNoteId))
+        {
+            throw new ArgumentException("The ServiceDesk note identifier must only be provided for note creation reconciliation.",
+                nameof(request.ServiceDeskNoteId));
         }
     }
 }

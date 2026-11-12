@@ -198,7 +198,7 @@ public sealed class HandOverToExternalServiceHandler
     {
         if (!serviceCase.VendorId.HasValue || serviceCase.VendorId.Value == Guid.Empty)
         {
-            throw new InvalidOperationException("The service case does not have a valid assigned vendor.");
+            throw new ServiceCaseStateConflictException("The service case does not have a valid assigned vendor.");
         }
 
         return new HandOverToExternalServiceResponse(
@@ -228,25 +228,22 @@ public sealed class HandOverToExternalServiceHandler
 
         if (serviceCase.AssetId != asset.Id)
         {
-            throw new InvalidOperationException("The service case and asset relationship is invalid.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "The service case and asset relationship is invalid.");
         }
 
         if (serviceCase.Status != ServiceCaseStatus.AwaitingExternalServiceDispatch)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id,
-                "Only a service case awaiting external service dispatch can be handed over to external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "Only a service case awaiting external service dispatch can be handed over to external service.");
         }
 
         if (!serviceCase.VendorId.HasValue || serviceCase.VendorId.Value == Guid.Empty)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id,
-                "A vendor must be assigned before the asset can be handed over to external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "A vendor must be assigned before the asset can be handed over to external service.");
         }
 
         if (asset.AssetStatus != AssetStatus.In_HQ)
         {
-            throw new ServiceCaseStateConflictException(serviceCase.Id,
-                "Only an asset located at headquarters can be handed over to external service.");
+            throw new ServiceCaseStateConflictException(serviceCase.Id, "Only an asset located at headquarters can be handed over to external service.");
         }
     }
 

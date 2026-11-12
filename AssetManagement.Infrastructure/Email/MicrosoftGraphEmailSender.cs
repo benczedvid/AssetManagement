@@ -34,11 +34,11 @@ namespace AssetManagement.Infrastructure.Email
             ArgumentNullException.ThrowIfNull(message);
             if(message.ToRecipients.Count == 0)
             {
-                throw new InvalidOperationException("The email must contain at least one recipientt.");
+                throw new InvalidOperationException("The email must contain at least one recipient.");
             }
             if (string.IsNullOrWhiteSpace(message.Subject))
             {
-                throw new InvalidOperationException("THe email subject is required.");
+                throw new InvalidOperationException("The email subject is required.");
             }
             if (string.IsNullOrWhiteSpace(_options.SendUserPrincipalName))
             {
@@ -84,6 +84,7 @@ namespace AssetManagement.Infrastructure.Email
                     message.Subject);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+
             {
                 _logger.LogWarning(
                     "The email sending operation was cancelled. " +
@@ -91,6 +92,8 @@ namespace AssetManagement.Infrastructure.Email
                     "Subject: {Subject}",
                     _options.SendUserPrincipalName,
                     message.Subject);
+
+                    throw;
             }
             catch (Exception ex)
             {

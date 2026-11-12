@@ -35,6 +35,8 @@ using AssetManagement.Application.ServiceCases.ResolveAfterExternalServiceReturn
 using AssetManagement.Application.ServiceCases.ReturnFromExternalService;
 using AssetManagement.Application.ServiceDesk.GetServiceDeskSyncOperations;
 using AssetManagement.Application.ServiceDesk.ReconcileServiceDeskRequest;
+using AssetManagement.Application.ServiceDesk.Reconciliation;
+using AssetManagement.Application.ServiceDesk.RequestServiceDeskNoteRetry;
 using AssetManagement.Application.Stores.CreateStore;
 using AssetManagement.Application.Stores.GetStoreById;
 using AssetManagement.Application.Stores.GetStores;
@@ -98,8 +100,8 @@ namespace AssetManagement.Application
             services.AddScoped<GetServiceDeskSyncOperationsHandler>();
 
             services.AddSingleton(TimeProvider.System);
-            services.AddScoped<IDailyAssetReportService, StartOfDayAssetReportService>();
-            services.AddScoped<IDailyAssetReportService, EndOfDayAssetReportService>();
+            services.AddScoped<IStartOfDayAssetReportService, StartOfDayAssetReportService>();
+            services.AddScoped<IEndOfDayAssetReportService, EndOfDayAssetReportService>();
             services.AddScoped<IOverdueAssetReportService, OverdueAssetReportService>();
 
             services.AddScoped<IUserAccessScopeResolver, UserAccessScopeResolver>();
@@ -114,6 +116,9 @@ namespace AssetManagement.Application
             services.AddScoped<CancelPackageHandler>();
             services.AddScoped<AddPackageAssetHandler>();
             services.AddScoped<RemovePackageAssetHandler>();
+
+            services.AddScoped<ResolveServiceDeskReconciliationHandler>();
+            services.AddScoped<RequestServiceDeskNoteRetryHandler>();
 
             return services;
         }

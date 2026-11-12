@@ -3,7 +3,8 @@ namespace AssetManagement.Application.ServiceDesk.Reconciliation;
 public enum ServiceDeskReconciliationOperation
 {
     RequestCreation = 1,
-    RequestClosure = 2
+    RequestClosure = 2,
+    NoteCreation = 3
 }
 
 public enum ServiceDeskReconciliationOutcome
@@ -18,7 +19,8 @@ public sealed record ResolveServiceDeskReconciliationRequest(
     Guid ProcessingOperationId,
     ServiceDeskReconciliationOutcome Outcome,
     string? ServiceDeskRequestId,
-    string VerificationComment);
+    string VerificationComment,
+    string? ServiceDeskNoteId = null);
 
 public sealed record ResolveServiceDeskReconciliationResponse(
     ServiceDeskReconciliationOperation Operation,

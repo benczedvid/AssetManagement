@@ -1,4 +1,6 @@
-﻿using AssetManagement.Application.Assets;
+﻿using AssetManagement.Application.AssetMovements.Exceptions;
+using AssetManagement.Application.Assets;
+using AssetManagement.Application.Assets.DisposeAsset;
 using AssetManagement.Application.Employees;
 using AssetManagement.Application.Packages.Exceptions;
 using AssetManagement.Application.ServiceCases.Exceptions;
@@ -6,6 +8,7 @@ using AssetManagement.Application.ServiceDesk.Exceptions;
 using AssetManagement.Application.Stores;
 using AssetManagement.Application.Users;
 using AssetManagement.Application.Vendors;
+using AssetManagement.Domain.Entities.Assets.Exceptions;
 using AssetManagement.WebApi.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -112,6 +115,20 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             StoreNotFoundException => StoreNotFoundProblemDetails(context),
             SerialNumberAlreadyExistsException => CreateAssetConflictProblemDetails(context),
             AssetNotFoundException => AssetNotFoundProblemDetails(context),
+            AssetDisposalStateConflictException => CreateAssetDisposalProblemDetails(
+                context,
+                StatusCodes.Status409Conflict,
+                "The asset disposal operation conflicts with the current state.",
+                exception.Message),
+            AssetDisposalAccessDeniedException => CreateAssetDisposalProblemDetails(
+                context,
+                StatusCodes.Status403Forbidden,
+                "Access to the asset disposal operation is denied.",
+                exception.Message),
+
+            AssetStateConflictException => CreateAssetStateConflictProblemDetails(context, exception.Message),
+
+            TimeoutException => CreateAssetLockTimeoutProblemDetails(context),
             VendorNotFoundException => VendorNotFoundProblemDetails(context),
             VendorAlreadyExistsException => VendorAlreadyExistsProblemDetails(context),
             EmployeeNotFoundException => EmployeeNotFoundProblemDetails(context),
@@ -132,7 +149,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     context,
                     StatusCodes.Status409Conflict,
                     "The service case operation conflicts with the current state.",
-                    "The requested operation cannot be performed in the current service case or asset state."),
+                    exception.Message),
 
             ServiceCaseAccessDeniedException => CreateServiceCaseProblemDetails(
                     context,
@@ -146,6 +163,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     StatusCodes.Status409Conflict,
                     "The ServiceDesk reconciliation conflicts with the current state.",
                     "The outbox state or processing operation identifier has changed."),
+
+            AssetMovementStateConflictException => CreateAssetMovementConflictProblemDetails(context, exception.Message),
 
             _ =>
                 CreateInternalServerErrorProblemDetails(context)
@@ -296,6 +315,33 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
+    private static ProblemDetails CreateAssetDisposalProblemDetails(HttpContext context,
+        int statusCode,
+        string title,
+        string detail)
+    {
+        return new ProblemDetails
+        {
+            Type = ResolveProblemType(statusCode),
+            Title = title,
+            Status = statusCode,
+            Detail = detail,
+            Instance = context.Request.Path
+        };
+    }
+
+    private static ProblemDetails CreateAssetLockTimeoutProblemDetails(HttpContext context)
+    {
+        return new ProblemDetails
+        {
+            Type = ResolveProblemType(StatusCodes.Status503ServiceUnavailable),
+            Title = "The asset operation is temporarily unavailable.",
+            Status = StatusCodes.Status503ServiceUnavailable,
+            Detail ="The asset is currently being modified by another operation. Retry the request after a short delay.",
+            Instance = context.Request.Path
+        };
+    }
+
     private static string ResolveProblemType(int statusCode)
     {
         return statusCode switch
@@ -305,6 +351,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             StatusCodes.Status403Forbidden => "https://tools.ietf.org/html/rfc9110#section-15.5.4",
             StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc9110#section-15.5.5",
             StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+            StatusCodes.Status503ServiceUnavailable => "https://tools.ietf.org/html/rfc9110#section-15.6.4",
 
             _ =>
                 "https://tools.ietf.org/html/rfc9110#section-15.6.1"
@@ -341,6 +388,29 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             Type = ResolveProblemType(statusCode),
             Status = statusCode,
             Title = title,
+            Detail = detail,
+            Instance = context.Request.Path
+        };
+    }
+    private static ProblemDetails CreateAssetMovementConflictProblemDetails(HttpContext context, string detail)
+    {
+        return new ProblemDetails
+        {
+            Type = ResolveProblemType(StatusCodes.Status409Conflict),
+            Title = "The asset movement conflicts with the current asset state.",
+            Status = StatusCodes.Status409Conflict,
+            Detail = detail,
+            Instance = context.Request.Path
+        };
+    }
+
+    private static ProblemDetails CreateAssetStateConflictProblemDetails(HttpContext context, string detail)
+    {
+        return new ProblemDetails
+        {
+            Type = ResolveProblemType(StatusCodes.Status409Conflict),
+            Title = "The asset operation conflicts with the current asset state.",
+            Status = StatusCodes.Status409Conflict,
             Detail = detail,
             Instance = context.Request.Path
         };

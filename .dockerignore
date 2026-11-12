@@ -4,24 +4,27 @@
 **/out/
 **/publish/
 
-# Visual Studio
+# Frontend build output and dependencies
+**/node_modules/
+**/dist/
+**/.angular/
+
+# IDEs
 .vs/
 **/.vs/
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+
+# User-specific files
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
-
-# JetBrains Rider
-.idea/
-**/.idea/
 *.sln.iml
 
-# Visual Studio Code
-.vscode/
-**/.vscode/
-
-# Test output and coverage
+# Test results and coverage
 **/TestResults/
 **/test-results/
 **/coverage/
@@ -31,7 +34,7 @@
 **/*.coveragexml
 **/coverage.cobertura.xml
 
-# NuGet packages and artifacts
+# Packages and generated artifacts
 **/*.nupkg
 **/*.snupkg
 packages/
@@ -50,21 +53,21 @@ packages/
 **/Thumbs.db
 **/desktop.ini
 
-# Git
+# Source control
 .git/
 .gitignore
 .gitattributes
 
-# Docker development files
+# Local orchestration
 docker-compose*.yml
 docker-compose*.yaml
 
-# Local and development configuration
+# Local configuration
 **/appsettings.Development.json
 **/appsettings.Local.json
 **/appsettings.*.local.json
 
-# Environment and secret files
+# Environment and secrets
 .env
 .env.*
 !.env.example
@@ -77,7 +80,7 @@ docker-compose*.yaml
 **/*.crt
 **/*.cer
 
-# Database files and backups
+# Local databases and backups
 **/*.mdf
 **/*.ldf
 **/*.bak
@@ -85,6 +88,6 @@ docker-compose*.yaml
 **/*.sqlite
 **/*.sqlite3
 
-# Documentation not needed during build
+# Documentation not needed by the image build
 **/*.md
 **/docs/

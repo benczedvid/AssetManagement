@@ -34,4 +34,11 @@ public interface IServiceDeskRequestOutboxRepository
         DateTime verifiedAtUtc,
         string reason,
         CancellationToken cancellationToken = default);
+        
+    Task<bool> TryFailBeforeSendAsync(
+        Guid outboxId,
+        Guid operationId,
+        string reason,
+        DateTime failedAtUtc,
+        CancellationToken cancellationToken = default);
 }

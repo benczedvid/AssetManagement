@@ -16,7 +16,6 @@ namespace AssetManagement.Domain.Entities.ServiceDesk;
 /// </remarks>
 public sealed class ServiceDeskNoteOutbox
 {
-    private const int MaximumDescriptionLength = 4000;
     private const int MaximumNoteIdLength = 100;
     private const int MaximumErrorLength = 1000;
 
@@ -55,11 +54,6 @@ public sealed class ServiceDeskNoteOutbox
         }
 
         var normalizedDescription = description.Trim();
-
-        if (normalizedDescription.Length > MaximumDescriptionLength)
-        {
-            throw new ArgumentException($"The ServiceDesk note description cannot exceed {MaximumDescriptionLength} characters.", nameof(description));
-        }
 
         return new ServiceDeskNoteOutbox
         {

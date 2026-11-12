@@ -2078,3 +2078,57 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261112120057_ExpandServiceDeskRequestOutboxDescription'
+)
+BEGIN
+    DECLARE @var15 nvarchar(max);
+    SELECT @var15 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[ServiceDeskRequestOutbox]') AND [c].[name] = N'Description');
+    IF @var15 IS NOT NULL EXEC(N'ALTER TABLE [ServiceDeskRequestOutbox] DROP CONSTRAINT ' + @var15 + ';');
+    ALTER TABLE [ServiceDeskRequestOutbox] ALTER COLUMN [Description] nvchar(max) NOT NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261112120057_ExpandServiceDeskRequestOutboxDescription'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261112120057_ExpandServiceDeskRequestOutboxDescription', N'10.0.13');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261112120453_ExpandServiceDeskNoteOutboxDescription'
+)
+BEGIN
+    DECLARE @var16 nvarchar(max);
+    SELECT @var16 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[ServiceDeskNoteOutbox]') AND [c].[name] = N'Description');
+    IF @var16 IS NOT NULL EXEC(N'ALTER TABLE [ServiceDeskNoteOutbox] DROP CONSTRAINT ' + @var16 + ';');
+    ALTER TABLE [ServiceDeskNoteOutbox] ALTER COLUMN [Description] nvchar(max) NOT NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261112120453_ExpandServiceDeskNoteOutboxDescription'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261112120453_ExpandServiceDeskNoteOutboxDescription', N'10.0.13');
+END;
+
+COMMIT;
+GO
+

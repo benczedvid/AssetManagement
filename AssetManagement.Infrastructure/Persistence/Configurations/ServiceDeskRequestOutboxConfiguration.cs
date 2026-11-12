@@ -20,7 +20,7 @@ internal sealed class ServiceDeskRequestOutboxConfiguration
         builder.Property(x => x.ServiceCaseId).IsRequired();
         builder.Property(x => x.ServiceCaseEventId).IsRequired();
         builder.Property(x => x.Subject).HasMaxLength(250).IsRequired();
-        builder.Property(x => x.Description).HasMaxLength(2000).IsRequired();
+        builder.Property(x => x.Description).HasColumnType("nvchar(max)").IsRequired();
         builder.Property(x => x.ServiceDeskRequestId).HasMaxLength(100).IsRequired(false);
         builder.Property(x => x.Status)
             .HasConversion<string>()

@@ -3,13 +3,15 @@ namespace AssetManagement.Domain.Entities.ServiceDesk;
 public enum ServiceDeskReconciliationOperationType
 {
     RequestCreation = 1,
-    RequestClosure = 2
+    RequestClosure = 2,
+    NoteCreation = 3
 }
 
 public enum ServiceDeskReconciliationAuditOutcome
 {
     Completed = 1,
-    Failed = 2
+    Failed = 2,
+    RetryRequested = 3
 }
 
 public sealed class ServiceDeskReconciliationAudit
