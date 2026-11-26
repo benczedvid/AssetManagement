@@ -9,6 +9,7 @@ using AssetManagement.Application.Common.Interfaces.ServiceCases;
 using AssetManagement.Application.Common.Interfaces.ServiceDesk;
 using AssetManagement.Application.Common.Interfaces.Stores;
 using AssetManagement.Application.Common.Interfaces.Users;
+using AssetManagement.Application.Common.Interfaces.Contacts;
 using AssetManagement.Application.Common.Interfaces.Vendors;
 using AssetManagement.Infrastructure.CaseNumbers;
 using AssetManagement.Infrastructure.Email;
@@ -68,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<IAssetMovementRepository, AssetMovementRepository>();
         services.AddScoped<IUnreturnedEmployeeAssetReportRepository, UnreturnedEmployeeAssetReportRepository>();
         services.AddScoped<IVendorRepository, VendorRepository>();
+        services.AddScoped<IContactRepository, ContactRepository>();
         services.AddScoped<IAssetHistoryRepository, AssetHistoryRepository>();
         services.AddScoped<IServiceCaseRepository, ServiceCaseRepository>();
         services.AddScoped<IPackageRepository, PackageRepository>();

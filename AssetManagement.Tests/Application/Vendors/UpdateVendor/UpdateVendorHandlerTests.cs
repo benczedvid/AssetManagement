@@ -152,12 +152,10 @@ namespace AssetManagement.Tests.Application.Vendors.UpdateVendor
         {
             var vendor = new VendorBuilder().Build();
 
-            var contactId = vendor.AddContact(
-                firstName: "Jane",
-                lastName: "Smith",
-                jobTitle: "Account Manager",
-                emailAddress: "jane.smith@example.com",
-                phoneNumber: "+36 30 765 4321");
+            var contact = new ContactBuilder().Build();
+            var contactId = contact.ContactId;
+
+            vendor.AttachContact(contact);
 
             _repository.Seed(vendor);
 
@@ -213,8 +211,7 @@ namespace AssetManagement.Tests.Application.Vendors.UpdateVendor
                     Street: "Váci",
                     PublicSpace: PublicSpaces.Road,
                     HouseNumber: "1"),
-                Webpage: "https://partner.example.com",
-                Contacts: []);
+                Webpage: "https://partner.example.com");
         }
     }
 }

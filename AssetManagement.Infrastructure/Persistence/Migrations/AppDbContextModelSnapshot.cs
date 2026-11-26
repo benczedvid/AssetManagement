@@ -223,6 +223,48 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                     b.ToTable("CaseNumberSequences", (string)null);
                 });
 
+            modelBuilder.Entity("AssetManagement.Domain.Entities.Contacts.Contact", b =>
+                {
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EmailAddress")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid?>("VendorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ContactId");
+
+                    b.HasIndex("VendorId", "PhoneNumber")
+                        .IsUnique()
+                        .HasFilter("[VendorId] IS NOT NULL");
+
+                    b.ToTable("Contacts", (string)null);
+                });
+
             modelBuilder.Entity("AssetManagement.Domain.Entities.Employees.Employee", b =>
                 {
                     b.Property<string>("EmployeeNumber")
@@ -994,47 +1036,6 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                     b.ToTable("ApplicationUsers", (string)null);
                 });
 
-            modelBuilder.Entity("AssetManagement.Domain.Entities.Vendors.Contact", b =>
-                {
-                    b.Property<Guid>("ContactId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("EmailAddress")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("JobTitle")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<Guid>("VendorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("ContactId");
-
-                    b.HasIndex("VendorId", "PhoneNumber")
-                        .IsUnique();
-
-                    b.ToTable("Contacts", (string)null);
-                });
-
             modelBuilder.Entity("AssetManagement.Domain.Entities.Vendors.Vendor", b =>
                 {
                     b.Property<Guid>("VendorId")
@@ -1134,6 +1135,14 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                     b.Navigation("AssignedUser");
 
                     b.Navigation("AssignedVendor");
+                });
+
+            modelBuilder.Entity("AssetManagement.Domain.Entities.Contacts.Contact", b =>
+                {
+                    b.HasOne("AssetManagement.Domain.Entities.Vendors.Vendor", null)
+                        .WithMany("Contacts")
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("AssetManagement.Domain.Entities.Packages.Package", b =>
@@ -1325,15 +1334,6 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("AssetManagement.Domain.Entities.Vendors.Contact", b =>
-                {
-                    b.HasOne("AssetManagement.Domain.Entities.Vendors.Vendor", null)
-                        .WithMany("Contacts")
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("AssetManagement.Domain.Entities.Packages.Package", b =>

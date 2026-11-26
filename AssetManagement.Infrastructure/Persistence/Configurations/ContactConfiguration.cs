@@ -1,4 +1,4 @@
-﻿using AssetManagement.Domain.Entities.Vendors;
+﻿using AssetManagement.Domain.Entities.Contacts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,6 +11,8 @@ namespace AssetManagement.Infrastructure.Persistence.Configurations
             builder.ToTable("Contacts");
             builder.HasKey(contact => contact.ContactId);
             builder.Property(contact => contact.ContactId).ValueGeneratedNever();
+            builder.Property(contact => contact.VendorId).IsRequired(false);
+            builder.Ignore(contact => contact.IsAttachedToVendor);
             builder.Property(contact => contact.FirstName).HasMaxLength(100).IsRequired();
             builder.Property(contact => contact.LastName).HasMaxLength(100).IsRequired();
             builder.Property(contact => contact.JobTitle).HasMaxLength(100).IsRequired();

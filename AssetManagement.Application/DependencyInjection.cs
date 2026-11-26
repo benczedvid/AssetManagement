@@ -43,7 +43,14 @@ using AssetManagement.Application.Stores.GetStores;
 using AssetManagement.Application.Stores.UpdateStore;
 using AssetManagement.Application.Users.GetApplicationUsers;
 using AssetManagement.Application.Users.GetOrCreateCurrentUser;
+using AssetManagement.Application.Contacts.CreateContact;
+using AssetManagement.Application.Contacts.DeleteContact;
+using AssetManagement.Application.Contacts.GetContactById;
+using AssetManagement.Application.Contacts.GetContacts;
+using AssetManagement.Application.Contacts.UpdateContact;
+using AssetManagement.Application.Vendors.AttachContactToVendor;
 using AssetManagement.Application.Vendors.CreateVendor;
+using AssetManagement.Application.Vendors.DetachContactFromVendor;
 using AssetManagement.Application.Vendors.GetVendorById;
 using AssetManagement.Application.Vendors.GetVendors;
 using AssetManagement.Application.Vendors.UpdateVendor;
@@ -82,6 +89,14 @@ namespace AssetManagement.Application
             services.AddScoped<GetVendorByIdHandler>();
             services.AddScoped<GetVendorsHandler>();
             services.AddScoped<UpdateVendorHandler>();
+            services.AddScoped<AttachContactToVendorHandler>();
+            services.AddScoped<DetachContactFromVendorHandler>();
+
+            services.AddScoped<CreateContactHandler>();
+            services.AddScoped<GetContactByIdHandler>();
+            services.AddScoped<GetContactsHandler>();
+            services.AddScoped<UpdateContactHandler>();
+            services.AddScoped<DeleteContactHandler>();
 
             services.AddScoped<OpenServiceCaseHandler>();
             services.AddScoped<RequireExternalServiceHandler>();

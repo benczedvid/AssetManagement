@@ -3,6 +3,7 @@ using AssetManagement.Application.Vendors.CreateVendor;
 using AssetManagement.Application.Vendors.GetVendorById;
 using AssetManagement.Application.Vendors.GetVendors;
 using AssetManagement.Application.Vendors.UpdateVendor;
+using AssetManagement.Domain.Entities.Contacts;
 using AssetManagement.Domain.Entities.ValueObjects.Address;
 using AssetManagement.Domain.Entities.Vendors;
 using AssetManagement.Infrastructure.Persistence;
@@ -119,12 +120,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.VendorControllers
 
             var vendor = CreateVendor("Tech Supplier Kft.");
 
-            vendor.AddContact(
-                firstName: "Jane",
-                lastName: "Smith",
-                jobTitle: "Account Manager",
-                emailAddress: "jane.smith@example.com",
-                phoneNumber: "+36 30 765 4321");
+            vendor.AttachContact(CreateContact("+36 30 765 4321"));
 
             await SeedVendorsAsync(vendor);
 
@@ -200,8 +196,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.VendorControllers
                     Street: "Váci",
                     PublicSpace: PublicSpaces.Road,
                     HouseNumber: "1"),
-                Webpage: "https://new.example.com",
-                Contacts: []);
+                Webpage: "https://new.example.com");
 
             using var response = await _httpClient!.PutAsJsonAsync($"{Endpoint}/{vendor.VendorId}", request, _jsonOptions, CancellationToken.None);
 
@@ -230,12 +225,203 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.VendorControllers
             var request = new UpdateVendorRequest(
                 Name: "Tech Supplier Zrt.",
                 Address: CreateValidCreateRequest().Address,
-                Webpage: null,
-                Contacts: []);
+                Webpage: null);
 
             using var response = await _httpClient!.PutAsJsonAsync($"{Endpoint}/{Guid.NewGuid()}", request, _jsonOptions, CancellationToken.None);
 
             Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        [TestMethod]
+        public async Task UpdateVendor_Should_Keep_Attached_Contacts()
+        {
+            AddAuthenticatedHeaders();
+
+            var vendor = CreateVendor("Tech Supplier Kft.");
+            var contact = CreateContact("+36 30 765 4321");
+            vendor.AttachContact(contact);
+
+            await SeedVendorsAsync(vendor);
+
+            var request = new UpdateVendorRequest(
+                Name: "Tech Supplier Zrt.",
+                Address: CreateValidCreateRequest().Address,
+                Webpage: null);
+
+            using var response = await _httpClient!.PutAsJsonAsync($"{Endpoint}/{vendor.VendorId}", request, _jsonOptions, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+            var responseBody = await response.Content.ReadFromJsonAsync<UpdateVendorResponse>(_jsonOptions, CancellationToken.None);
+
+            Assert.IsNotNull(responseBody);
+            Assert.AreEqual(contact.ContactId, responseBody.Contacts.Single().Id);
+        }
+
+        [TestMethod]
+        public async Task AttachContact_Should_Return_204_And_Attach_Standalone_Contact()
+        {
+            AddAuthenticatedHeaders();
+
+            var vendor = CreateVendor("Tech Supplier Kft.");
+            var contact = CreateContact("+36 30 765 4321");
+
+            await SeedVendorsAsync(vendor);
+            await SeedContactsAsync(contact);
+
+            using var response = await _httpClient!.PutAsync($"{Endpoint}/{vendor.VendorId}/contacts/{contact.ContactId}", null, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.NoContent, response.StatusCode);
+            Assert.AreEqual(vendor.VendorId, (await FindContactAsync(contact.ContactId))!.VendorId);
+
+            var vendorResponse = await _httpClient.GetFromJsonAsync<GetVendorByIdResponse>($"{Endpoint}/{vendor.VendorId}", _jsonOptions, CancellationToken.None);
+
+            Assert.IsNotNull(vendorResponse);
+            Assert.AreEqual(contact.ContactId, vendorResponse.Contacts.Single().Id);
+        }
+
+        [TestMethod]
+        public async Task AttachContact_Should_Return_404_When_Contact_Does_Not_Exist()
+        {
+            AddAuthenticatedHeaders();
+
+            var vendor = CreateVendor("Tech Supplier Kft.");
+
+            await SeedVendorsAsync(vendor);
+
+            using var response = await _httpClient!.PutAsync($"{Endpoint}/{vendor.VendorId}/contacts/{Guid.NewGuid()}", null, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        [TestMethod]
+        public async Task AttachContact_Should_Return_404_When_Vendor_Does_Not_Exist()
+        {
+            AddAuthenticatedHeaders();
+
+            var contact = CreateContact("+36 30 765 4321");
+
+            await SeedContactsAsync(contact);
+
+            using var response = await _httpClient!.PutAsync($"{Endpoint}/{Guid.NewGuid()}/contacts/{contact.ContactId}", null, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        [TestMethod]
+        public async Task AttachContact_Should_Return_409_When_Contact_Is_Attached_To_Another_Vendor()
+        {
+            AddAuthenticatedHeaders();
+
+            var firstVendor = CreateVendor("Tech Supplier Kft.");
+            var secondVendor = CreateVendor("Service Partner Zrt.");
+            var contact = CreateContact("+36 30 765 4321");
+            firstVendor.AttachContact(contact);
+
+            await SeedVendorsAsync(firstVendor, secondVendor);
+
+            using var response = await _httpClient!.PutAsync($"{Endpoint}/{secondVendor.VendorId}/contacts/{contact.ContactId}", null, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.AreEqual(firstVendor.VendorId, (await FindContactAsync(contact.ContactId))!.VendorId);
+        }
+
+        [TestMethod]
+        public async Task AttachContact_Should_Return_409_When_PhoneNumber_Is_Already_Used_By_Vendor_Contact()
+        {
+            AddAuthenticatedHeaders();
+
+            var vendor = CreateVendor("Tech Supplier Kft.");
+            vendor.AttachContact(CreateContact("+36 30 765 4321"));
+            var newContact = CreateContact("+36 30 765 4321");
+
+            await SeedVendorsAsync(vendor);
+            await SeedContactsAsync(newContact);
+
+            using var response = await _httpClient!.PutAsync($"{Endpoint}/{vendor.VendorId}/contacts/{newContact.ContactId}", null, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.IsNull((await FindContactAsync(newContact.ContactId))!.VendorId);
+        }
+
+        [TestMethod]
+        [DataRow("CentralUser")]
+        [DataRow("StoreManagement")]
+        public async Task AttachContact_Should_Return_403_When_User_Cannot_Manage_Vendors(string role)
+        {
+            AddAuthenticatedHeaders(role);
+
+            using var response = await _httpClient!.PutAsync($"{Endpoint}/{Guid.NewGuid()}/contacts/{Guid.NewGuid()}", null, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [TestMethod]
+        public async Task DetachContact_Should_Return_204_And_Keep_Contact_Standalone()
+        {
+            AddAuthenticatedHeaders();
+
+            var vendor = CreateVendor("Tech Supplier Kft.");
+            var contact = CreateContact("+36 30 765 4321");
+            vendor.AttachContact(contact);
+
+            await SeedVendorsAsync(vendor);
+
+            using var response = await _httpClient!.DeleteAsync($"{Endpoint}/{vendor.VendorId}/contacts/{contact.ContactId}", CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.NoContent, response.StatusCode);
+
+            var persistedContact = await FindContactAsync(contact.ContactId);
+
+            Assert.IsNotNull(persistedContact);
+            Assert.IsNull(persistedContact.VendorId);
+        }
+
+        [TestMethod]
+        public async Task DetachContact_Should_Return_409_When_Contact_Is_Not_Attached_To_Vendor()
+        {
+            AddAuthenticatedHeaders();
+
+            var vendor = CreateVendor("Tech Supplier Kft.");
+            var contact = CreateContact("+36 30 765 4321");
+
+            await SeedVendorsAsync(vendor);
+            await SeedContactsAsync(contact);
+
+            using var response = await _httpClient!.DeleteAsync($"{Endpoint}/{vendor.VendorId}/contacts/{contact.ContactId}", CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+        }
+
+        private static Contact CreateContact(string phoneNumber)
+        {
+            return Contact.Create(
+                firstName: "Jane",
+                lastName: "Smith",
+                jobTitle: "Account Manager",
+                emailAddress: "jane.smith@example.com",
+                phoneNumber: phoneNumber);
+        }
+
+        private async Task SeedContactsAsync(params Contact[] contacts)
+        {
+            using var scope = _applicationFactory!.Services.CreateScope();
+
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            await dbContext.Contacts.AddRangeAsync(contacts, CancellationToken.None);
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+        }
+
+        private async Task<Contact?> FindContactAsync(Guid contactId)
+        {
+            using var scope = _applicationFactory!.Services.CreateScope();
+
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            return await dbContext.Contacts
+                .AsNoTracking()
+                .SingleOrDefaultAsync(contact => contact.ContactId == contactId, CancellationToken.None);
         }
 
         private static CreateVendorRequest CreateValidCreateRequest()

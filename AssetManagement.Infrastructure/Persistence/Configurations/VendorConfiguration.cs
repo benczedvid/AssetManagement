@@ -71,7 +71,8 @@ namespace AssetManagement.Infrastructure.Persistence.Configurations
             builder.HasMany(vendor => vendor.Contacts)
                 .WithOne()
                 .HasForeignKey(contact => contact.VendorId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
             builder.Navigation(vendor => vendor.Contacts)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);

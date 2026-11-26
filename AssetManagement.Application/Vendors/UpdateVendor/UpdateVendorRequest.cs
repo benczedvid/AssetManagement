@@ -4,6 +4,8 @@ namespace AssetManagement.Application.Vendors.UpdateVendor
 {
     /// <summary>
     /// Represents a request to update an existing vendor.
+    /// Contacts are managed separately: they are standalone entities that can be
+    /// attached to or detached from the vendor through the vendor contact endpoints.
     /// </summary>
     /// <param name="Name">
     /// The updated name of the vendor.
@@ -14,13 +16,9 @@ namespace AssetManagement.Application.Vendors.UpdateVendor
     /// <param name="Webpage">
     /// The updated webpage of the vendor, when available.
     /// </param>
-    /// <param name="Contacts">
-    /// The collection of contact information associated with the vendor.
-    /// </param>
     public sealed record UpdateVendorRequest(
         string Name,
         AddressRequest Address,
-        string? Webpage,
-        IReadOnlyCollection<UpdateContactRequest> Contacts
+        string? Webpage
     );
 }
