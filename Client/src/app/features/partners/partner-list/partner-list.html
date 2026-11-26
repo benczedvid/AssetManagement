@@ -1,0 +1,124 @@
+<main>
+  <section class="min-w-full p-4">
+    @if (isLoading()) {
+    <div class="flex min-h-64 items-center justify-center rounded-2xl bg-white shadow-md" role="status">
+      <div class="text-center">
+        <div class="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#006AB2]" aria-hidden="true"></div>
+        <p class="mt-4 text-sm font-medium text-slate-600">Partnerek betöltése...</p>
+      </div>
+    </div>
+    } @else if (errorMessage()) {
+    <div class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800" role="alert">
+      <h2 class="font-bold">Betöltési hiba</h2>
+      <p class="mt-1 text-sm">{{ errorMessage() }}</p>
+      <button type="button" class="mt-4 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500" (click)="load()">Újrapróbálkozás</button>
+    </div>
+    } @else {
+    <div class="grid gap-6 lg:grid-cols-2">
+      <!-- Beszállítók -->
+      <div>
+        <ng-container *ngTemplateOutlet="addButton; context: { link: '/partners/vendors/new', query: null, label: 'Új beszállító' }" />
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="bg-[#002B51] px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">Beszállítók</div>
+
+          @if (vendors().length === 0) {
+          <p class="px-5 py-10 text-center text-sm text-slate-600">Jelenleg nincs megjeleníthető beszállító.</p>
+          } @else {
+          <ul class="divide-y divide-slate-200">
+            @for (vendor of vendors(); track vendor.id) {
+            <li class="flex items-center justify-between gap-3 px-5 py-4 transition-colors"
+                [class]="vendor.id === selectedVendorId() ? 'bg-[#FFED00]/25' : 'hover:bg-slate-50'">
+              <button type="button" class="min-w-0 flex-1 text-left" [attr.aria-pressed]="vendor.id === selectedVendorId()" (click)="toggleVendor(vendor.id)">
+                <p class="truncate font-semibold text-[#002B51]">{{ vendor.name }}</p>
+                <p class="truncate text-sm text-slate-500">{{ vendor.address.postalCode }} {{ vendor.address.city }}</p>
+              </button>
+              @if (vendor.id === selectedVendorId()) {
+              <ng-container *ngTemplateOutlet="editButton; context: { link: ['/partners/vendors', vendor.id, 'edit'], label: 'Beszállító módosítása' }" />
+              }
+            </li>
+            }
+          </ul>
+          }
+        </div>
+      </div>
+
+      <!-- Kontaktok -->
+      <div>
+        <ng-container *ngTemplateOutlet="addButton; context: { link: '/partners/contacts/new', query: selectedVendorId() ? { vendorId: selectedVendorId() } : null, label: 'Új kontakt' }" />
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center justify-between gap-3 bg-[#002B51] px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">
+            <span>Kontaktok</span>
+            @if (selectedVendor(); as vendor) {
+            <button type="button" class="truncate normal-case tracking-normal text-yellow-400 hover:text-yellow-300" (click)="toggleVendor(vendor.id)">
+              {{ vendor.name }} ✕
+            </button>
+            }
+          </div>
+
+          @if (visibleContacts().length === 0) {
+          <p class="px-5 py-10 text-center text-sm text-slate-600">Jelenleg nincs megjeleníthető kontakt.</p>
+          } @else {
+          <ul class="divide-y divide-slate-200">
+            @for (contact of visibleContacts(); track contact.id) {
+            @let expanded = contact.id === expandedContactId();
+            <li [class]="expanded ? 'bg-[#FFED00]/25' : 'hover:bg-slate-50'" class="transition-colors">
+              <div class="flex items-center justify-between gap-3 px-5 py-4">
+                <button type="button" class="flex min-w-0 flex-1 items-center justify-between gap-3 text-left" [attr.aria-expanded]="expanded" (click)="toggleContact(contact.id)">
+                  <span class="min-w-0">
+                    <span class="block truncate font-semibold text-[#002B51]">{{ contact.lastName }} {{ contact.firstName }}</span>
+                    <span class="block truncate text-sm text-slate-500">{{ vendorName(contact) || '—' }}</span>
+                  </span>
+                  <svg class="h-4 w-4 shrink-0 text-slate-400 transition-transform" [class.rotate-180]="expanded" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                @if (expanded) {
+                <ng-container *ngTemplateOutlet="editButton; context: { link: ['/partners/contacts', contact.id, 'edit'], label: 'Kontakt módosítása' }" />
+                }
+              </div>
+
+              @if (expanded) {
+              <dl class="grid gap-3 px-5 pb-4 text-sm sm:grid-cols-3">
+                <div>
+                  <dt class="font-semibold text-slate-500">Beosztás</dt>
+                  <dd class="text-[#002B51]">{{ contact.jobTitle }}</dd>
+                </div>
+                <div>
+                  <dt class="font-semibold text-slate-500">Telefonszám</dt>
+                  <dd><a class="text-[#006AB2] hover:underline" [href]="'tel:' + contact.phoneNumber">{{ contact.phoneNumber }}</a></dd>
+                </div>
+                <div class="min-w-0">
+                  <dt class="font-semibold text-slate-500">E-mail</dt>
+                  <dd class="truncate"><a class="text-[#006AB2] hover:underline" [href]="'mailto:' + contact.emailAddress">{{ contact.emailAddress }}</a></dd>
+                </div>
+              </dl>
+              }
+            </li>
+            }
+          </ul>
+          }
+        </div>
+      </div>
+    </div>
+    }
+  </section>
+</main>
+
+<ng-template #addButton let-link="link" let-query="query" let-label="label">
+  <a [routerLink]="link" [queryParams]="query"
+     class="mb-3 inline-flex items-center justify-center gap-2 rounded-lg bg-[#FFED00] px-4 py-2.5 text-sm font-bold text-[#002B51] transition-all hover:-translate-y-0.5 hover:bg-[#f5e300] focus:outline-none focus:ring-4 focus:ring-[#FFED00]/30">
+    <span class="text-lg leading-none" aria-hidden="true">+</span>
+    <span>{{ label }}</span>
+  </a>
+</ng-template>
+
+<ng-template #editButton let-link="link" let-label="label">
+  <a [routerLink]="link" [attr.aria-label]="label" [title]="label"
+     class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-[#002B51] transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#006AB2] focus:ring-offset-2">
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+    </svg>
+  </a>
+</ng-template>

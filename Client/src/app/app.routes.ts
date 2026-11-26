@@ -105,24 +105,14 @@ export const routes: Routes = [
         loadComponent: () =>import('./features/employees/employee-list/employee-list').then(component => component.EmployeeList),
       },
       {
-        path: 'vendors/new',
+        path: 'partners',
         canActivate: [permissionGuard],
         data: {
           permissions: [
             APPLICATION_PERMISSIONS.assetsManage
           ],
         },
-        loadComponent: () => import('./features/vendors/vendor-create/vendor-create').then(component => component.VendorCreate),
-      },
-      {
-        path: 'vendors',
-        canActivate: [permissionGuard],
-        data: {
-          permissions: [
-            APPLICATION_PERMISSIONS.assetsManage
-          ],
-        },
-        loadComponent: () => import('./features/vendors/vendor-list/vendor-list').then(component => component.VendorList),
+        loadChildren: () => import('./features/partners/partners.routes').then(module => module.partnersRoutes),
       },
       {
         path: 'administration',
