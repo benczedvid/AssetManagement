@@ -13,16 +13,15 @@ internal sealed class FakeApplicationUserRepository: IApplicationUserRepository
     public int SaveChangesCallCount { get; private set; }
     public int GetByEntraIdentityCallCount { get; private set; }
     public int GetByIdCallCount { get; private set; }
+    public int GetAllCallCount { get; private set; }
 
     public CancellationToken LastAddCancellationToken { get; private set; }
     public CancellationToken LastSaveChangesCancellationToken { get; private set; }
     public CancellationToken LastGetByIdCancellationToken { get; private set; }
     public CancellationToken LastGetByEntraIdentityCancellationToken { get; private set; }
+    public CancellationToken LastGetAllCancellationToken { get; private set; }
 
-    public Task<ApplicationUser?> GetByEntraIdentityAsync(
-        Guid entraObjectId,
-        Guid entraTenantId,
-        CancellationToken cancellationToken = default)
+    public Task<ApplicationUser?> GetByEntraIdentityAsync(Guid entraObjectId, Guid entraTenantId, CancellationToken cancellationToken = default)
     {
         GetByEntraIdentityCallCount++;
         LastGetByEntraIdentityCancellationToken = cancellationToken;
@@ -34,9 +33,7 @@ internal sealed class FakeApplicationUserRepository: IApplicationUserRepository
         return Task.FromResult(user);
     }
 
-    public Task<ApplicationUser?> GetByIdAsync(
-        Guid id,
-        CancellationToken cancellationToken = default)
+    public Task<ApplicationUser?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         GetByIdCallCount++;
         LastGetByIdCancellationToken = cancellationToken;
@@ -45,10 +42,17 @@ internal sealed class FakeApplicationUserRepository: IApplicationUserRepository
 
         return Task.FromResult(user);
     }
+    public Task<IReadOnlyList<ApplicationUser>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        GetAllCallCount++;
+        LastGetAllCancellationToken = cancellationToken;
 
-    public Task AddAsync(
-        ApplicationUser user,
-        CancellationToken cancellationToken = default)
+        IReadOnlyList<ApplicationUser> users = [.. _users];
+
+        return Task.FromResult(users);
+    }
+
+    public Task AddAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -60,8 +64,7 @@ internal sealed class FakeApplicationUserRepository: IApplicationUserRepository
         return Task.CompletedTask;
     }
 
-    public Task SaveChangesAsync(
-        CancellationToken cancellationToken = default)
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         SaveChangesCallCount++;
         LastSaveChangesCancellationToken = cancellationToken;

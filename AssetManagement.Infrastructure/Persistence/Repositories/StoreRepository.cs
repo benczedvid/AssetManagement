@@ -31,16 +31,27 @@ namespace AssetManagement.Infrastructure.Persistence.Repositories
                 .AsNoTracking()
                 .SingleOrDefaultAsync(s => s.Id == id, cancellationToken);
         }
-        public async Task<IReadOnlyList<Store>>GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<Store>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
         {
-            if(ids.Count == 0)
+            ArgumentNullException.ThrowIfNull(ids);
+
+            if (ids.Any(id => id == Guid.Empty))
+            {
+                throw new ArgumentException("Store identifiers cannot contain an empty identifier.", nameof(ids));
+            }
+
+            if (ids.Count == 0)
             {
                 return [];
             }
 
+            var distinctIds = ids
+                .Distinct()
+                .ToArray();
+
             return await _dbContext.Stores
                 .AsNoTracking()
-                .Where(store => ids.Contains(store.Id))
+                .Where(store => distinctIds.Contains(store.Id))
                 .ToListAsync(cancellationToken);
         }
 

@@ -13,7 +13,7 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
             migrationBuilder.AlterColumn<string>(
                 name: "Description",
                 table: "ServiceDeskRequestOutbox",
-                type: "nvchar(max)",
+                type: "nvarchar(max)",
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(2000)",
@@ -30,7 +30,7 @@ namespace DeathStar.Infrastructure.Persistence.Migrations
                 maxLength: 2000,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvchar(max)");
+                oldType: "nvarchar(max)");
         }
     }
 }

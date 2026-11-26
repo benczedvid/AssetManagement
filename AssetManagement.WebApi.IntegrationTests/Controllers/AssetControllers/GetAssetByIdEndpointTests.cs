@@ -41,11 +41,15 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task GetAssetById_Should_Return_200_When_Asset_Exist()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
+
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
+
             var asset = new AssetBuilder()
                 .WithAssignedStoreId(store.Id)
                 .WithAssignedUserId(user.Id)
@@ -66,7 +70,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task GetAssetById_Should_Return_404_When_Asset_Does_Not_Exist()
         {
-            AddAuthenticatedHeaders();
+            var store = new StoreBuilder().Build();
+            var user = new ApplicationUserBuilder().Build();
+
+            await SeedStore(store);
+            await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
+            
             Guid unknownId = Guid.NewGuid();
 
             using var response = await _httpClient!.GetAsync($"/api/assets/{unknownId}", CancellationToken.None);
@@ -96,11 +107,13 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
             Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
 
         }
-        private void AddAuthenticatedHeaders()
+        private void AddAuthenticatedHeaders(ApplicationUser applicationUser)
         {
+            ArgumentNullException.ThrowIfNull(applicationUser);
+
             _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.AuthenticationHeader, "true");
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, Guid.NewGuid().ToString());
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, Guid.NewGuid().ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, applicationUser.EntraObjectId.ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, applicationUser.EntraTenantId.ToString());
         }
 
         private async Task SeedStore(Store store)

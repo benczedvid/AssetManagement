@@ -286,7 +286,8 @@ namespace AssetManagement.Tests.Application.Assets.CreateAsset
                 AssignedStoreId: assignedStoreId,
                 AssignedUserId: assignedUserId,
                 AssignedVendorId: assignedVendorId,
-                RfidTagId: "RFID-PF4KVG84");
+                RfidTagId: "RFID-PF4KVG84",
+                WarrantyEndDate: null);
         }
     }
 }

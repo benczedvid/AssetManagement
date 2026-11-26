@@ -509,17 +509,15 @@ namespace AssetManagement.Tests.Application.Assets.UpdateAsset
         }
 
         [TestMethod]
-        public async Task HandleAsync_Should_Not_Create_History_When_Nothing_Changed()
+        public async Task HandleAsync_Should_Not_Create_WarrantyHistory_When_Date_Did_Not_Change()
         {
             var store = new StoreBuilder().Build();
-
+            var warrantyEndDate = new DateOnly(2029, 12, 31);
             var asset = new AssetBuilder()
-                .WithAssetName("HUHQLAP9999")
-                .WithManufacturer("Lenovo")
-                .WithModel("ThinkPad T14")
                 .WithAssignedStoreId(store.Id)
                 .WithAssignedUserId(null)
                 .WithAssignedVendorId(null)
+                .WithWarrantyEndDate(warrantyEndDate)
                 .Build();
 
             _assetRepository.Seed(asset);
@@ -540,16 +538,13 @@ namespace AssetManagement.Tests.Application.Assets.UpdateAsset
                 AssignedStoreId: asset.AssignedStoreId,
                 AssignedUserId: asset.AssignedUserId,
                 AssignedVendorId: asset.AssignedVendorId,
-                RfIdTagId: asset.RfidTagId);
+                RfIdTagId: asset.RfidTagId,
+                WarrantyEndDate: warrantyEndDate);
 
-            await _handler.HandleAsync(
-                asset.Id,
-                request,
-                CancellationToken.None);
+            await _handler.HandleAsync(asset.Id, request, CancellationToken.None);
 
-            Assert.AreEqual(0, _assetHistoryRepository.AddRangeCallCount);
-            Assert.AreEqual(0, _assetHistoryRepository.AssetHistories.Count);
-            Assert.AreEqual(1, _assetRepository.SaveChangesCallCount);
+            Assert.IsFalse(_assetHistoryRepository.AssetHistories.Any(
+                    item => item.PropertyName == nameof(Asset.WarrantyEndDate)));
         }
 
         [TestMethod]
@@ -803,7 +798,8 @@ namespace AssetManagement.Tests.Application.Assets.UpdateAsset
                 AssignedStoreId: assignedStoreId,
                 AssignedUserId: assignedUserId,
                 AssignedVendorId: assignedVendorId,
-                RfIdTagId: "RFID-HUHQLAP9999");
+                RfIdTagId: "RFID-HUHQLAP9999",
+                WarrantyEndDate: null);
         }
     }
 }

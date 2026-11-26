@@ -20,7 +20,7 @@ namespace AssetManagement.Tests.Builders
         private string? _imei = "123456789123456";
         private string? _operatingSystem = "Windows";
         private string? _operatingSystemVersion = "24H2";
-        private DateOnly? _warrantyEndDate = new DateOnly(2026,09,25);
+        private DateOnly? _warrantyEndDate;
 
         public AssetBuilder WithAssetName(string? assetName) { _assetName = assetName; return this; }
         public AssetBuilder WithAssetType(AssetType assetType) { _assetType = assetType; return this; }
@@ -43,6 +43,7 @@ namespace AssetManagement.Tests.Builders
         public AssetBuilder WithOperatingSystemVersion(string? operatingSystemVersion) { _operatingSystemVersion = operatingSystemVersion; return this; }
         public AssetBuilder AsPdtInStore() {  _assetType = AssetType.PDT; _assetStatus = AssetStatus.In_Store; _assignedEmployeeNumber = null; return this; }
         public AssetBuilder AsCheckedOutPdt(string employeeNumber = "103549") { _assetType = AssetType.PDT; _assetStatus = AssetStatus.Used_In_Store; _assignedEmployeeNumber = employeeNumber; return this; }
+        public AssetBuilder WithWarrantyEndDate(DateOnly? date) { _warrantyEndDate = date; return this;}
         public Asset Build()
         {
             return Asset.Create(
@@ -61,7 +62,8 @@ namespace AssetManagement.Tests.Builders
                 wifiMacAddress: _wifiMacAddress,
                 imei: _imei,
                 operatingSystem: _operatingSystem,
-                operatingSystemVersion: _operatingSystemVersion);
+                operatingSystemVersion: _operatingSystemVersion,
+                warrantyEndDate: _warrantyEndDate);
         }
     }
 }

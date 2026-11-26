@@ -1,5 +1,7 @@
-﻿using AssetManagement.Application.Users.GetOrCreateCurrentUser;
+﻿using AssetManagement.Application.Common.Models;
+using AssetManagement.Application.Users.GetOrCreateCurrentUser;
 using AssetManagement.Infrastructure.Persistence;
+using AssetManagement.Tests.Fakes;
 using AssetManagement.WebApi.IntegrationTests.Authentication;
 using AssetManagement.WebApi.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -8,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace AssetManagement.WebApi.IntegrationTests.Controllers;
 
@@ -16,6 +20,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers;
 public sealed class UsersEndpointTests
 {
     private AssetManagementWebApplicationFactory? _factory = null!;
+    private JsonSerializerOptions _jsonOptions = null!;
 
     private HttpClient? _client = null!;
 
@@ -23,8 +28,9 @@ public sealed class UsersEndpointTests
     public void Initialize()
     {
         _factory = new AssetManagementWebApplicationFactory();
-
         _client = _factory.CreateClient();
+        _jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        _jsonOptions.Converters.Add(new JsonStringEnumConverter());
     }
 
     [TestCleanup]
@@ -51,48 +57,24 @@ public sealed class UsersEndpointTests
         var entraObjectId = Guid.NewGuid();
         var entraTenantId = Guid.NewGuid();
 
-        AddAuthenticatedUserHeaders(
-            entraObjectId,
-            entraTenantId);
+        SeedEntraProfile(entraObjectId);
+        AddAuthenticatedUserHeaders(entraObjectId, entraTenantId);
 
         // Act
-        var response =
-            await _client!.GetAsync(
-                "/api/users/me");
+        var response = await _client!.GetAsync("/api/users/me");
 
         // Assert
-        Assert.AreEqual(
-            HttpStatusCode.OK,
-            response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
-        var currentUser =
-            await response.Content
-                .ReadFromJsonAsync<CurrentUserResponse>();
+        var currentUser = await response.Content.ReadFromJsonAsync<CurrentUserResponse>(_jsonOptions, CancellationToken.None);
 
         Assert.IsNotNull(currentUser);
-
-        Assert.AreEqual(
-            entraObjectId,
-            currentUser.EntraObjectId);
-
-        Assert.AreEqual(
-            entraTenantId,
-            currentUser.EntraTenantId);
-
-        Assert.AreEqual(
-            "Luke",
-            currentUser.FirstName);
-
-        Assert.AreEqual(
-            "Skywalker",
-            currentUser.LastName);
-
-        Assert.AreEqual(
-            "Luke Skywalker",
-            currentUser.DisplayName);
-
+        Assert.AreEqual(entraObjectId, currentUser.EntraObjectId);
+        Assert.AreEqual(entraTenantId, currentUser.EntraTenantId);
+        Assert.AreEqual("John", currentUser.FirstName);
+        Assert.AreEqual("Doe", currentUser.LastName);
+        Assert.AreEqual("John Doe", currentUser.DisplayName);
         Assert.IsTrue(currentUser.IsActive);
-
         await AssertUserWasPersistedAsync(
             currentUser.Id,
             entraObjectId,
@@ -106,90 +88,49 @@ public sealed class UsersEndpointTests
         var entraObjectId = Guid.NewGuid();
         var entraTenantId = Guid.NewGuid();
 
-        AddAuthenticatedUserHeaders(
-            entraObjectId,
-            entraTenantId);
+        SeedEntraProfile(entraObjectId);
+        AddAuthenticatedUserHeaders(entraObjectId, entraTenantId);
 
         // Act
-        var firstResponse =
-            await _client!.GetFromJsonAsync<CurrentUserResponse>(
-                "/api/users/me");
-
-        var secondResponse =
-            await _client!.GetFromJsonAsync<CurrentUserResponse>(
-                "/api/users/me");
+        var firstResponse = await _client!.GetFromJsonAsync<CurrentUserResponse>("/api/users/me", _jsonOptions, CancellationToken.None);
+        var secondResponse = await _client!.GetFromJsonAsync<CurrentUserResponse>("/api/users/me", _jsonOptions, CancellationToken.None);
 
         // Assert
         Assert.IsNotNull(firstResponse);
         Assert.IsNotNull(secondResponse);
+        Assert.AreEqual(firstResponse.Id, secondResponse.Id);
 
-        Assert.AreEqual(
-            firstResponse.Id,
-            secondResponse.Id);
-
-        await AssertOnlyOneMatchingUserExistsAsync(
-            entraObjectId,
-            entraTenantId);
+        await AssertOnlyOneMatchingUserExistsAsync(entraObjectId, entraTenantId);
     }
+
     [TestMethod]
-    public async Task GetMe_Should_Return_Unauthorized_ProblemDetails_When_Required_Claim_Is_Missing()
+    public async Task GetMe_Should_Return_Unauthorized_ProblemDetails_When_Entra_Profile_Does_Not_Exist()
     {
-        // Arrange
         var entraObjectId = Guid.NewGuid();
         var entraTenantId = Guid.NewGuid();
 
-        AddAuthenticatedUserHeaders(
-            entraObjectId,
-            entraTenantId);
+        // Intentionally do not seed an Entra profile.
+        AddAuthenticatedUserHeaders(entraObjectId, entraTenantId);
 
-        _client!.DefaultRequestHeaders.Add(
-            TestAuthenticationHandler
-                .OmitLastNameHeader,
-            "true");
+        using var response = await _client!.GetAsync("/api/users/me");
 
-        // Act
-        var response =
-            await _client!.GetAsync(
-                "/api/users/me");
-
-        // Assert
-        Assert.AreEqual(
-            HttpStatusCode.Unauthorized,
-            response.StatusCode);
-
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.AreEqual("application/problem+json", response.Content.Headers.ContentType?.MediaType);
 
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
 
         Assert.IsNotNull(problemDetails);
-
         Assert.AreEqual(StatusCodes.Status401Unauthorized, problemDetails.Status);
-
         Assert.AreEqual("Authentication information is invalid.", problemDetails.Title);
-
         Assert.AreEqual("/api/users/me", problemDetails.Instance);
-
         Assert.IsTrue(problemDetails.Extensions.ContainsKey("traceId"));
     }
 
-    private void AddAuthenticatedUserHeaders(
-        Guid entraObjectId,
-        Guid entraTenantId)
+    private void AddAuthenticatedUserHeaders(Guid entraObjectId, Guid entraTenantId)
     {
-        _client!.DefaultRequestHeaders.Add(
-            TestAuthenticationHandler
-                .AuthenticationHeader,
-            "true");
-
-        _client!.DefaultRequestHeaders.Add(
-            TestAuthenticationHandler
-                .EntraObjectIdHeader,
-            entraObjectId.ToString());
-
-        _client!.DefaultRequestHeaders.Add(
-            TestAuthenticationHandler
-                .EntraTenantIdHeader,
-            entraTenantId.ToString());
+        _client!.DefaultRequestHeaders.Add(TestAuthenticationHandler.AuthenticationHeader, "true");
+        _client!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, entraObjectId.ToString());
+        _client!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, entraTenantId.ToString());
     }
 
     private async Task AssertUserWasPersistedAsync(
@@ -212,28 +153,35 @@ public sealed class UsersEndpointTests
         Assert.AreEqual(entraTenantId, persistedUser.EntraTenantId);
     }
 
-    private async Task
-        AssertOnlyOneMatchingUserExistsAsync(
-            Guid entraObjectId,
-            Guid entraTenantId)
+    private async Task AssertOnlyOneMatchingUserExistsAsync(Guid entraObjectId, Guid entraTenantId)
     {
-        using var scope =
-            _factory!.Services.CreateScope();
+        using var scope = _factory!.Services.CreateScope();
 
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AppDbContext>();
-
-        var matchingUsersCount =
-            await dbContext.ApplicationUsers
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var matchingUsersCount = await dbContext.ApplicationUsers
                 .AsNoTracking()
                 .CountAsync(
                     user =>
-                        user.EntraObjectId ==
-                        entraObjectId &&
-                        user.EntraTenantId ==
-                        entraTenantId);
+                        user.EntraObjectId == entraObjectId &&
+                        user.EntraTenantId == entraTenantId);
 
         Assert.AreEqual(1, matchingUsersCount);
+    }
+
+    private void SeedEntraProfile(Guid entraObjectId, string? lastName = "Doe")
+    {
+        var profileService = _factory!.Services.GetRequiredService<FakeEntraUserProfileService>();
+
+        profileService.Seed(new EntraUserProfile(
+                EntraObjectId: entraObjectId,
+                EmployeeNumber: null,
+                FirstName: "John",
+                LastName: lastName,
+                DisplayName: "John Doe",
+                Mail: "john.doe@praktiker.hu",
+                Department: "Integration Tests",
+                JobTitle: "Test User",
+                MobilePhone: null,
+                IsAccountEnabled: true));
     }
 }

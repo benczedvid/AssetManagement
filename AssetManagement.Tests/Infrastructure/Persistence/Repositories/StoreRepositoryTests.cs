@@ -272,5 +272,135 @@ namespace AssetManagement.Tests.Infrastructure.Persistence.Repositories
             Assert.AreEqual(PublicSpaces.Street, persistedStore.Address.PublicSpace);
             Assert.AreEqual("11", persistedStore.Address.HouseNumber);
         }
+
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Return_Matching_Stores()
+        {
+            var firstStore = new StoreBuilder()
+                .WithStoreNumber("501")
+                .Build();
+
+            var secondStore = new StoreBuilder()
+                .WithStoreNumber("502")
+                .Build();
+
+            var excludedStore = new StoreBuilder()
+                .WithStoreNumber("503")
+                .Build();
+
+            _appDbContext.Stores.AddRange(
+                firstStore,
+                secondStore,
+                excludedStore);
+
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            var result = await _storeRepository.GetByIdsAsync([firstStore.Id, secondStore.Id], CancellationToken.None);
+
+            Assert.HasCount(2, result);
+            Assert.Contains(store => store.Id == firstStore.Id, result);
+            Assert.Contains(store => store.Id == secondStore.Id, result);
+            Assert.DoesNotContain(store => store.Id == excludedStore.Id, result);
+        }
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Ignore_Unknown_Identifiers()
+        {
+            var store = new StoreBuilder()
+                .WithStoreNumber("504")
+                .Build();
+
+            _appDbContext.Stores.Add(store);
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            var result = await _storeRepository.GetByIdsAsync([store.Id, Guid.NewGuid()], CancellationToken.None);
+
+            Assert.HasCount(1, result);
+            Assert.AreEqual(store.Id, result[0].Id);
+        }
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Return_Empty_List_When_Ids_Are_Empty()
+        {
+            var result = await _storeRepository.GetByIdsAsync([], CancellationToken.None);
+
+            Assert.IsNotNull(result);
+            Assert.IsEmpty(result);
+        }
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Not_Return_Duplicate_Stores()
+        {
+            var store = new StoreBuilder()
+                .WithStoreNumber("505")
+                .Build();
+
+            _appDbContext.Stores.Add(store);
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            var result = await _storeRepository.GetByIdsAsync([store.Id, store.Id, store.Id], CancellationToken.None);
+
+            Assert.HasCount(1, result);
+            Assert.AreEqual(store.Id, result[0].Id);
+        }
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Return_Untracked_Stores()
+        {
+            var store = new StoreBuilder()
+                .WithStoreNumber("506")
+                .Build();
+
+            _appDbContext.Stores.Add(store);
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            var result = await _storeRepository.GetByIdsAsync([store.Id], CancellationToken.None);
+
+            var returnedStore = result.Single();
+
+            Assert.AreEqual(EntityState.Detached, _appDbContext.Entry(returnedStore).State);
+        }
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Throw_When_Ids_Are_Null()
+        {
+            var exception = await Assert.ThrowsExactlyAsync<ArgumentNullException>(
+                    () => _storeRepository.GetByIdsAsync(null!, CancellationToken.None));
+
+            Assert.AreEqual("ids", exception.ParamName);
+        }
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Throw_When_Ids_Contain_Empty_Guid()
+        {
+            var exception = await Assert.ThrowsExactlyAsync<ArgumentException>(
+                    () => _storeRepository.GetByIdsAsync([Guid.NewGuid(), Guid.Empty], CancellationToken.None));
+
+            Assert.AreEqual("ids", exception.ParamName);
+        }
+
+        [TestMethod]
+        public async Task GetByIdsAsync_Should_Respect_Cancelled_CancellationToken()
+        {
+            var store = new StoreBuilder()
+                .WithStoreNumber("507")
+                .Build();
+
+            _appDbContext.Stores.Add(store);
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            using var cancellationTokenSource = new CancellationTokenSource();
+
+            await cancellationTokenSource.CancelAsync();
+
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+                () => _storeRepository.GetByIdsAsync([store.Id], cancellationTokenSource.Token));
+        }
     }
 }

@@ -465,7 +465,8 @@ public sealed class AssetRepositoryTests
             wifiMacAddress: null,
             imei: null,
             operatingSystem: "Windows",
-            operatingSystemVersion: "11");
+            operatingSystemVersion: "11",
+            warrantyEndDate: null);
 
         await _repository.SaveChangesAsync(CancellationToken.None);
 
@@ -522,6 +523,127 @@ public sealed class AssetRepositoryTests
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => _repository.GetAllAsync(
                 cancellationTokenSource.Token));
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Return_Matching_Assets()
+    {
+        var testData = await SeedRequiredEntitiesAsync();
+
+        var firstAsset = CreateAsset(
+            testData.Store.Id,
+            testData.User.Id,
+            serialNumber: "IDS-001");
+
+        var secondAsset = CreateAsset(
+            testData.Store.Id,
+            testData.User.Id,
+            serialNumber: "IDS-002");
+
+        var excludedAsset = CreateAsset(
+            testData.Store.Id,
+            testData.User.Id,
+            serialNumber: "IDS-003");
+
+        await SeedAssetsAsync(firstAsset, secondAsset, excludedAsset);
+
+        var result = await _repository.GetByIdsAsync([firstAsset.Id, secondAsset.Id], CancellationToken.None);
+
+        Assert.HasCount(2, result);
+        Assert.Contains(asset => asset.Id == firstAsset.Id, result);
+        Assert.Contains(asset => asset.Id == secondAsset.Id, result);
+        Assert.DoesNotContain(asset => asset.Id == excludedAsset.Id, result);
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Ignore_Unknown_Identifiers()
+    {
+        var testData = await SeedRequiredEntitiesAsync();
+        var asset = CreateAsset(
+            testData.Store.Id,
+            testData.User.Id,
+            serialNumber: "IDS-UNKNOWN-001");
+
+        await SeedAssetsAsync(asset);
+
+        var result = await _repository.GetByIdsAsync([asset.Id, Guid.NewGuid()], CancellationToken.None);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual(asset.Id, result[0].Id);
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Return_Empty_List_When_Ids_Are_Empty()
+    {
+        var result = await _repository.GetByIdsAsync([], CancellationToken.None);
+
+        Assert.IsNotNull(result);
+        Assert.IsEmpty(result);
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Not_Return_Duplicate_Assets()
+    {
+        var testData = await SeedRequiredEntitiesAsync();
+
+        var asset = CreateAsset(
+            testData.Store.Id,
+            testData.User.Id,
+            serialNumber: "IDS-DUPLICATE-001");
+
+        await SeedAssetsAsync(asset);
+
+        var result = await _repository.GetByIdsAsync([asset.Id, asset.Id, asset.Id], CancellationToken.None);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual(asset.Id, result[0].Id);
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Return_Untracked_Assets()
+    {
+        var testData = await SeedRequiredEntitiesAsync();
+
+        var asset = CreateAsset(
+            testData.Store.Id,
+            testData.User.Id,
+            serialNumber: "IDS-TRACKING-001");
+
+        await SeedAssetsAsync(asset);
+
+        var result = await _repository.GetByIdsAsync([asset.Id], CancellationToken.None);
+        var returnedAsset = result.Single();
+
+        Assert.AreEqual(EntityState.Detached, _dbContext.Entry(returnedAsset).State);
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Throw_When_Ids_Are_Null()
+    {
+        var exception = await Assert.ThrowsExactlyAsync<ArgumentNullException>(
+                () => _repository.GetByIdsAsync(null!, CancellationToken.None));
+
+        Assert.AreEqual("assetIds", exception.ParamName);
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Throw_When_Ids_Contain_Empty_Guid()
+    {
+        var exception = await Assert.ThrowsExactlyAsync<ArgumentException>(
+                () => _repository.GetByIdsAsync([Guid.NewGuid(), Guid.Empty], CancellationToken.None));
+
+        Assert.AreEqual("assetIds", exception.ParamName);
+    }
+
+    [TestMethod]
+    public async Task GetByIdsAsync_Should_Respect_Cancelled_CancellationToken()
+    {
+        using var cancellationTokenSource = new CancellationTokenSource();
+
+        await cancellationTokenSource.CancelAsync();
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            () => _repository.GetByIdsAsync([Guid.NewGuid()], cancellationTokenSource.Token));
     }
 
     private async Task<AssetTestData> SeedRequiredEntitiesAsync()

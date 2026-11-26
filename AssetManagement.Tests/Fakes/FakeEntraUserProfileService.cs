@@ -3,7 +3,7 @@ using AssetManagement.Application.Common.Models;
 
 namespace AssetManagement.Tests.Fakes
 {
-    internal sealed class FakeEntraUserProfileService : IEntraUserProfileService
+    public sealed class FakeEntraUserProfileService : IEntraUserProfileService
     {
         private readonly Dictionary<Guid, EntraUserProfile> _profiles = [];
         public int GetByObjectIdCallCount { get; private set; }

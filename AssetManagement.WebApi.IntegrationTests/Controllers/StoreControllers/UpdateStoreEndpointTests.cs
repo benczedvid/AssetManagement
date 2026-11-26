@@ -1,10 +1,12 @@
 ﻿using AssetManagement.Application.Common.Models;
 using AssetManagement.Application.Stores.UpdateStore;
 using AssetManagement.Domain.Entities.Stores;
+using AssetManagement.Domain.Entities.Users;
 using AssetManagement.Domain.Entities.ValueObjects.Address;
 using AssetManagement.Infrastructure.Persistence;
 using AssetManagement.WebApi.IntegrationTests.Authentication;
 using AssetManagement.WebApi.IntegrationTests.Infrastructure;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -192,7 +194,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
                 _jsonOptions,
                 CancellationToken.None);
 
-            await AssertBadRequestAsync(response, store.Id);
+            await AssertValidationBadRequestAsync(response, "Address");
         }
 
         [TestMethod]
@@ -350,7 +352,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
         {
             _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.AuthenticationHeader, "true");
             _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, Guid.NewGuid().ToString());
-            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, Guid.NewGuid().ToString());
+            _httpClient.DefaultRequestHeaders.Add( TestAuthenticationHandler.EntraTenantIdHeader,  Guid.NewGuid().ToString());
         }
 
         private async Task SeedStoreAsync(Store store)
@@ -381,6 +383,19 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.StoreControllers
             Assert.AreEqual(request.Address.Street, persistedStore.Address.Street);
             Assert.AreEqual(request.Address.PublicSpace, persistedStore.Address.PublicSpace);
             Assert.AreEqual(request.Address.HouseNumber, persistedStore.Address.HouseNumber);
+        }
+
+        private static async Task AssertValidationBadRequestAsync(HttpResponseMessage response, string expectedField)
+        {
+            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+
+            var problemDetails = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+
+            Assert.IsNotNull(problemDetails);
+            Assert.AreEqual(StatusCodes.Status400BadRequest, problemDetails.Status);
+            Assert.AreEqual("One or more validation errors occurred.", problemDetails.Title);
+            Assert.IsTrue(problemDetails.Errors.Keys.Any(
+                    key => key.EndsWith(expectedField, StringComparison.OrdinalIgnoreCase)));
         }
     }
 }

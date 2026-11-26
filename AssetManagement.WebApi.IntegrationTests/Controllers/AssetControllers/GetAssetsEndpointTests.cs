@@ -1,5 +1,4 @@
 ﻿using AssetManagement.Application.Assets.GetAssets;
-using AssetManagement.Application.Stores.GetStores;
 using AssetManagement.Domain.Entities.Assets;
 using AssetManagement.Domain.Entities.Stores;
 using AssetManagement.Domain.Entities.Users;
@@ -40,11 +39,13 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task GetAssets_Should_Return_200_With_All_Stores()
         {
-            AddAuthenticatedHeaders();
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
+
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var firstAsset = new AssetBuilder()
                 .WithAssignedStoreId(store.Id)
@@ -84,12 +85,17 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task GetAssets_Should_Return_200_With_Empty_List_When_No_Stores_Exist()
         {
-            AddAuthenticatedHeaders();
+            var user = new ApplicationUserBuilder().Build();
+
+            await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
+
             using var response = await _httpClient!.GetAsync("/api/assets", CancellationToken.None);
 
             Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
-            var responseBody = await response.Content.ReadFromJsonAsync<IReadOnlyList<GetStoresResponse>>(_jsonOptions, CancellationToken.None);
+            var responseBody = await response.Content.ReadFromJsonAsync<IReadOnlyList<GetAssetsResponse>>(_jsonOptions, CancellationToken.None);
 
             Assert.IsNotNull(responseBody);
             Assert.HasCount(0, responseBody);
@@ -102,11 +108,13 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
 
             Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
         }
-        private void AddAuthenticatedHeaders()
+        private void AddAuthenticatedHeaders(ApplicationUser applicationUser)
         {
+            ArgumentNullException.ThrowIfNull(applicationUser);
+
             _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.AuthenticationHeader, "true");
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, Guid.NewGuid().ToString());
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, Guid.NewGuid().ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, applicationUser.EntraObjectId.ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, applicationUser.EntraTenantId.ToString());
         }
 
         private async Task SeedStore(Store store)

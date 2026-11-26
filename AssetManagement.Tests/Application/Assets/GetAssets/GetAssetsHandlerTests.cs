@@ -13,6 +13,7 @@ namespace AssetManagement.Tests.Application.Assets.GetAssets
         private FakeEmployeeRepository _employeeRepository = null!;
         private FakeUserAccessScopeResolver _userAccessScopeResolver = null!;
         private GetAssetsHandler _handler = null!;
+        private FakeStoreRepository _storeRepository = null!;
 
         [TestInitialize]
         public void Initialize()
@@ -20,18 +21,20 @@ namespace AssetManagement.Tests.Application.Assets.GetAssets
             _assetRepository = new FakeAssetRepository();
             _employeeRepository = new FakeEmployeeRepository();
             _userAccessScopeResolver = new FakeUserAccessScopeResolver();
-            _handler = new GetAssetsHandler(_assetRepository, _employeeRepository, _userAccessScopeResolver);
+            _storeRepository = new FakeStoreRepository();
+            
+            _handler = new GetAssetsHandler(_assetRepository, _employeeRepository,_storeRepository, _userAccessScopeResolver);
         }
 
         [TestMethod]
         public void Constructor_Should_Throw_When_AssetRepository_Is_Null()
         {
-            var exception =
-                Assert.ThrowsExactly<ArgumentNullException>(
-                    () => new GetAssetsHandler(
+            var exception = Assert.ThrowsExactly<ArgumentNullException>(() => new GetAssetsHandler(
                         null!,
                         _employeeRepository,
-                        _userAccessScopeResolver));
+                        _storeRepository,
+                        _userAccessScopeResolver)
+                        );
 
             Assert.AreEqual("assetRepository", exception.ParamName);
         }
@@ -39,12 +42,12 @@ namespace AssetManagement.Tests.Application.Assets.GetAssets
         [TestMethod]
         public void Constructor_Should_Throw_When_EmployeeRepository_Is_Null()
         {
-            var exception =
-                Assert.ThrowsExactly<ArgumentNullException>(
-                    () => new GetAssetsHandler(
-                        _assetRepository,
-                        null!,
-                        _userAccessScopeResolver));
+            var exception = Assert.ThrowsExactly<ArgumentNullException>(() => new GetAssetsHandler(
+                    _assetRepository,
+                    null!,
+                    _storeRepository,
+                    _userAccessScopeResolver)
+                    );
 
             Assert.AreEqual("employeeRepository", exception.ParamName);
         }
@@ -52,14 +55,26 @@ namespace AssetManagement.Tests.Application.Assets.GetAssets
         [TestMethod]
         public void Constructor_Should_Throw_When_UserAccessScopeResolver_Is_Null()
         {
-            var exception =
-                Assert.ThrowsExactly<ArgumentNullException>(
-                    () => new GetAssetsHandler(
-                        _assetRepository,
-                        _employeeRepository,
-                        null!));
+            var exception = Assert.ThrowsExactly<ArgumentNullException>(() => new GetAssetsHandler(
+                    _assetRepository,
+                    _employeeRepository,
+                    _storeRepository,
+                    null!));
 
             Assert.AreEqual("userAccessScopeResolver", exception.ParamName);
+        }
+
+        [TestMethod]
+        public void Constructor_Should_Throw_When_StoreRepository_Is_Null()
+        {
+            var exception = Assert.ThrowsExactly<ArgumentNullException>(() => new GetAssetsHandler(
+                        _assetRepository,
+                        _employeeRepository,
+                        null!,
+                        _userAccessScopeResolver)
+                        );
+
+            Assert.AreEqual("storeRepository", exception.ParamName);
         }
 
         [TestMethod]

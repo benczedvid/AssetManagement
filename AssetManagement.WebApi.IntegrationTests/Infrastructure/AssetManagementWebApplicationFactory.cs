@@ -1,4 +1,6 @@
-﻿using AssetManagement.Infrastructure.Persistence;
+﻿using AssetManagement.Application.Common.Interfaces.Users;
+using AssetManagement.Infrastructure.Persistence;
+using AssetManagement.Tests.Fakes;
 using AssetManagement.WebApi.IntegrationTests.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -20,7 +22,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Infrastructure
         private SqliteConnection? _connection;
 
         private readonly string _databaseName =
-            $"DeathStarIntegrationTests_{Guid.NewGuid():N}";
+            $"AssetManagementIntegrationTests_{Guid.NewGuid():N}";
 
         protected override void ConfigureWebHost(
             IWebHostBuilder builder)
@@ -42,7 +44,8 @@ namespace AssetManagement.WebApi.IntegrationTests.Infrastructure
                             ["MicrosoftGraphEmail:TenantId"] = "00000000-0000-0000-0000-000000000000",
                             ["MicrosoftGraphEmail:ClientId"] = "00000000-0000-0000-0000-000000000000",
                             ["MicrosoftGraphEmail:ClientSecret"] = "integration-test-client-secret",
-                            ["MicrosoftGraphEmail:SendUserPrincipalName"] = "test@praktiker.hu"
+                            ["MicrosoftGraphEmail:SendUserPrincipalName"] = "test@praktiker.hu",
+                            ["ServiceDeskPlus:ApiKey"] = "integration-test-api-key",
                         };
 
                     configurationBuilder.AddInMemoryCollection(testConfiguration);
@@ -70,17 +73,26 @@ namespace AssetManagement.WebApi.IntegrationTests.Infrastructure
 
             builder.ConfigureTestServices(services =>
             {
+                services.RemoveAll<IHostedService>();
+                services.RemoveAll<IEntraUserProfileService>();
+                services.AddSingleton<FakeEntraUserProfileService>();
+                services.AddSingleton<IEntraUserProfileService>(
+                serviceProvider => serviceProvider.GetRequiredService<FakeEntraUserProfileService>());
+
                 services
                     .AddAuthentication(options =>
                     {
                         options.DefaultScheme = TestAuthenticationHandler.AuthenticationScheme;
-                        options.DefaultAuthenticateScheme = TestAuthenticationHandler.AuthenticationScheme;
+                        options.DefaultAuthenticateScheme =  TestAuthenticationHandler.AuthenticationScheme;
                         options.DefaultChallengeScheme = TestAuthenticationHandler.AuthenticationScheme;
                         options.DefaultForbidScheme = TestAuthenticationHandler.AuthenticationScheme;
                     })
-                    .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(TestAuthenticationHandler.AuthenticationScheme,
-                        _ => { }
-                        );
+                    .AddScheme<
+                        AuthenticationSchemeOptions,
+                        TestAuthenticationHandler>(
+                        TestAuthenticationHandler.AuthenticationScheme,
+                        _ => { });
+
             });
         }
 

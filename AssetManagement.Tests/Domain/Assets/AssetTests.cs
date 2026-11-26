@@ -1,4 +1,5 @@
 ﻿using AssetManagement.Domain.Entities.Assets;
+using AssetManagement.Domain.Entities.Assets.Exceptions;
 using AssetManagement.Tests.Builders;
 
 namespace AssetManagement.Tests.Domain.Assets
@@ -418,6 +419,28 @@ namespace AssetManagement.Tests.Domain.Assets
         }
 
         [TestMethod]
+        public void Create_Should_Set_WarrantyEndDate()
+        {
+            var warrantyEndDate = new DateOnly(2029, 12, 31);
+
+            var asset = new AssetBuilder()
+                .WithWarrantyEndDate(warrantyEndDate)
+                .Build();
+
+            Assert.AreEqual(warrantyEndDate, asset.WarrantyEndDate);
+        }
+
+        [TestMethod]
+        public void Create_Should_Allow_Null_WarrantyEndDate()
+        {
+            var asset = new AssetBuilder()
+                .WithWarrantyEndDate(null)
+                .Build();
+
+            Assert.IsNull(asset.WarrantyEndDate);
+        }
+
+        [TestMethod]
         public void Checkout_Should_Check_Out_Pdt_To_Employee()
         {
             var asset = new AssetBuilder()
@@ -466,7 +489,7 @@ namespace AssetManagement.Tests.Domain.Assets
                 .WithAssetStatus(AssetStatus.In_Store)
                 .Build();
 
-            Assert.ThrowsExactly<InvalidOperationException>(() => asset.Checkout("103549"));
+            Assert.ThrowsExactly<AssetStateConflictException>(() => asset.Checkout("103549"));
             Assert.AreEqual(AssetStatus.In_Store, asset.AssetStatus);
             Assert.IsNull(asset.AssignedEmployeeNumber);
         }
@@ -479,7 +502,7 @@ namespace AssetManagement.Tests.Domain.Assets
                 .WithAssetStatus(AssetStatus.In_HQ)
                 .Build();
 
-            Assert.ThrowsExactly<InvalidOperationException>(() => asset.Checkout("103549"));
+            Assert.ThrowsExactly<AssetStateConflictException>(() => asset.Checkout("103549"));
         }
 
         [TestMethod]
@@ -515,7 +538,7 @@ namespace AssetManagement.Tests.Domain.Assets
                 .AsCheckedOutPdt("103549")
                 .Build();
 
-            Assert.ThrowsExactly<InvalidOperationException>(() => asset.Return("999999"));
+            Assert.ThrowsExactly<AssetStateConflictException>(() => asset.Return("999999"));
 
             Assert.AreEqual(AssetStatus.Used_In_Store, asset.AssetStatus);
             Assert.AreEqual("103549", asset.AssignedEmployeeNumber);
@@ -530,7 +553,7 @@ namespace AssetManagement.Tests.Domain.Assets
                 .WithAssignedEmployeeNumber("103549")
                 .Build();
 
-            Assert.ThrowsExactly<InvalidOperationException>(() => asset.Return("103549"));
+            Assert.ThrowsExactly<AssetStateConflictException>(() => asset.Return("103549"));
         }
 
         [TestMethod]
@@ -540,7 +563,7 @@ namespace AssetManagement.Tests.Domain.Assets
                 .AsPdtInStore()
                 .Build();
 
-            Assert.ThrowsExactly<InvalidOperationException>(() => asset.Return("103549"));
+            Assert.ThrowsExactly<AssetStateConflictException>(() => asset.Return("103549"));
         }
 
         [TestMethod]
@@ -567,7 +590,8 @@ namespace AssetManagement.Tests.Domain.Assets
                 wifiMacAddress: null,
                 imei: null,
                 operatingSystem: "  Windows  ",
-                operatingSystemVersion: "  24H2  ");
+                operatingSystemVersion: "  24H2  ",
+                warrantyEndDate: null);
 
             Assert.AreEqual(originalId, asset.Id);
             Assert.AreEqual(originalSerialNumber, asset.SerialNumber);
@@ -605,7 +629,8 @@ namespace AssetManagement.Tests.Domain.Assets
                 wifiMacAddress: null,
                 imei: null,
                 operatingSystem: null,
-                operatingSystemVersion: null);
+                operatingSystemVersion: null,
+                warrantyEndDate: null);
 
             Assert.IsNull(asset.RfidTagId);
             Assert.IsNull(asset.AssignedUserId);

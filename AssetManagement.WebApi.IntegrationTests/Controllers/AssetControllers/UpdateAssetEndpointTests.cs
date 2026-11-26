@@ -47,7 +47,8 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
             await SeedStore(store);
             await SeedUser(user);
 
-            AddAuthenticatedHeaders();
+            AddAuthenticatedHeaders(user);
+
             var asset = Asset.Create(
                 assetName: "HUHQLAP0287",
                 assetType: AssetType.Notebook,
@@ -79,7 +80,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
                 AssignedVendorId: asset.AssignedVendorId,
-                RfIdTagId: asset.RfidTagId);
+                RfIdTagId: asset.RfidTagId,
+                WarrantyEndDate: null);
+
             var response = await _httpClient!.PutAsJsonAsync($"/api/assets/{asset.Id}", updateAsset, CancellationToken.None);
             var responseBody = await response.Content.ReadFromJsonAsync<UpdateAssetResponse>(_jsonOptions, CancellationToken.None);
 
@@ -109,7 +112,7 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
             await SeedStore(store);
             await SeedUser(user);
 
-            AddAuthenticatedHeaders();
+            AddAuthenticatedHeaders(user);
 
             Guid invalidId = Guid.NewGuid();
 
@@ -127,7 +130,8 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
                 AssignedVendorId: Guid.NewGuid(),
-                RfIdTagId: "123456");
+                RfIdTagId: "123456",
+                WarrantyEndDate: null);
 
             var response = await _httpClient!.PutAsJsonAsync($"/api/assets/{invalidId}", updateAsset, CancellationToken.None);
             Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
@@ -136,13 +140,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task UpdateAsset_Should_Return_400_When_Request_Body_Is_Null()
         {
-            AddAuthenticatedHeaders();
+            
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
 
+            AddAuthenticatedHeaders(user);
 
             var asset = Asset.Create(
                 assetName: "HUHQLAP0287",
@@ -157,7 +162,8 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 operatingSystem: "Windows",
                 operatingSystemVersion: "24H2",
                 assignedStoreId: store.Id,
-                assignedUserId: user.Id
+                assignedUserId: user.Id,
+                warrantyEndDate: null
                 );
             await SeedAssetAsync(asset);
             using var content = new StringContent("null", Encoding.UTF8, "application/json");
@@ -205,17 +211,20 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
                 AssignedVendorId: asset.AssignedVendorId,
-                RfIdTagId: asset.RfidTagId);
+                RfIdTagId: asset.RfidTagId,
+                WarrantyEndDate: null);
 
             using var response = await _httpClient!.PutAsJsonAsync($"/api/assets/{asset.Id}", updateAsset, CancellationToken.None);
 
             Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
         }
-        private void AddAuthenticatedHeaders()
+        private void AddAuthenticatedHeaders(ApplicationUser applicationUser)
         {
+            ArgumentNullException.ThrowIfNull(applicationUser);
+
             _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.AuthenticationHeader, "true");
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, Guid.NewGuid().ToString());
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, Guid.NewGuid().ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, applicationUser.EntraObjectId.ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, applicationUser.EntraTenantId.ToString());
         }
 
         private async Task SeedAssetAsync(Asset asset)

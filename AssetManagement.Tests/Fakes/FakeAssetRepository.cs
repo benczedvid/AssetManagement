@@ -19,11 +19,17 @@ namespace AssetManagement.Tests.Fakes
         public int GetForUpdateByIdCallCount { get; private set; }
         public int GetForUpdateBySerialNumberCallCount { get; private set; }
         public int SaveChangesCallCount { get; private set; }
+        public int GetByIdsCallCount { get; private set; }
+
         public Guid? LastRequestedAssetId { get; private set; }
         public Guid? LastRequestedStoreId { get; private set; }
         public Guid? LastRequestedAssignedUserId { get; private set; }
         public string? LastRequestedRfidTagId { get; private set; }
         public string? LastRequestedSerialNumber { get; private set; }
+        public IReadOnlyCollection<Guid> LastRequestedAssetIds { get; private set; } = Array.Empty<Guid>();
+
+
+
         public CancellationToken LastAddCancellationToken { get; private set; }
         public CancellationToken LastGetByIdCancellationToken { get; private set; }
         public CancellationToken LastGetByIdAndStoreIdCancellationToken { get; private set; }
@@ -36,6 +42,7 @@ namespace AssetManagement.Tests.Fakes
         public CancellationToken LastGetForUpdateBySerialNumberCancellationToken { get; private set; }
         public CancellationToken LastGetAllByStoreIdCancellationToken { get; private set; }
         public CancellationToken LastGetByRfidTagIdCancellationToken { get; private set; }
+        public CancellationToken LastGetByIdsCancellationToken { get; private set; }
 
         public Task AddAsync(Asset asset, CancellationToken cancellationToken = default)
         {
@@ -147,6 +154,29 @@ namespace AssetManagement.Tests.Fakes
             var asset = _assets.SingleOrDefault(currentAsset => currentAsset.SerialNumber == serialNumber);
 
             return Task.FromResult(asset);
+        }
+
+        public Task<IReadOnlyList<Asset>> GetByIdsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(assetIds);
+
+            GetByIdsCallCount++;
+            LastRequestedAssetIds = [.. assetIds];
+            LastGetByIdsCancellationToken = cancellationToken;
+
+            if (assetIds.Count == 0)
+            {
+                return Task.FromResult<IReadOnlyList<Asset>>([]);
+            }
+
+            var requestedIds = assetIds.ToHashSet();
+
+            IReadOnlyList<Asset> assets =
+            [
+                .. _assets.Where(asset => requestedIds.Contains(asset.Id))
+            ];
+
+            return Task.FromResult(assets);
         }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)

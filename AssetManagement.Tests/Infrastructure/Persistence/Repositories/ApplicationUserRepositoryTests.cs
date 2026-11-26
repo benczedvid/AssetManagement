@@ -89,9 +89,7 @@ namespace AssetManagement.Tests.Infrastructure.Persistence.Repositories
             var unknownObjectId = Guid.NewGuid();
             var unknownTenantId = Guid.NewGuid();
 
-            var result = await _userRepository.GetByEntraIdentityAsync(
-                unknownObjectId,
-                unknownTenantId);
+            var result = await _userRepository.GetByEntraIdentityAsync(unknownObjectId, unknownTenantId);
 
             Assert.IsNull(result);
         }
@@ -110,7 +108,6 @@ namespace AssetManagement.Tests.Infrastructure.Persistence.Repositories
             await _appDbContext.SaveChangesAsync();
 
             var otherTenantId = Guid.NewGuid();
-
             var result = await _userRepository.GetByEntraIdentityAsync(objectId, otherTenantId);
 
             Assert.IsNull(result);
@@ -129,8 +126,8 @@ namespace AssetManagement.Tests.Infrastructure.Persistence.Repositories
             await _appDbContext.SaveChangesAsync();
 
             var otherObjectId = Guid.NewGuid();
-
-            var result = await _userRepository.GetByEntraIdentityAsync(tenantId, otherObjectId);
+            var result =
+            await _userRepository.GetByEntraIdentityAsync(otherObjectId, tenantId);
 
             Assert.IsNull(result);
         }
@@ -157,6 +154,87 @@ namespace AssetManagement.Tests.Infrastructure.Persistence.Repositories
             _appDbContext.ApplicationUsers.Add(secondUser);
 
             await Assert.ThrowsExactlyAsync<DbUpdateException>(() => _appDbContext.SaveChangesAsync());
+        }
+
+        [TestMethod]
+        public async Task GetAllAsync_Should_Return_All_Active_Users()
+        {
+            var firstUser = new ApplicationUserBuilder()
+                .WithDisplayName("Luke Skywalker")
+                .Build();
+
+            var secondUser = new ApplicationUserBuilder()
+                .WithDisplayName("Leia Organa")
+                .Build();
+
+            _appDbContext.ApplicationUsers.AddRange(firstUser, secondUser);
+
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            var result = await _userRepository.GetAllAsync(CancellationToken.None);
+
+            Assert.HasCount(2, result);
+            Assert.Contains(user => user.Id == firstUser.Id, result);
+            Assert.Contains(user => user.Id == secondUser.Id, result);
+        }
+
+        [TestMethod]
+        public async Task GetAllAsync_Should_Return_Empty_List_When_No_Users_Exist()
+        {
+            var result = await _userRepository.GetAllAsync(CancellationToken.None);
+
+            Assert.IsNotNull(result);
+            Assert.IsEmpty(result);
+        }
+
+        [TestMethod]
+        public async Task GetAllAsync_Should_Order_Users_By_DisplayName()
+        {
+            var secondUser = new ApplicationUserBuilder()
+                .WithDisplayName("Luke Skywalker")
+                .Build();
+
+            var firstUser = new ApplicationUserBuilder()
+                .WithDisplayName("Leia Organa")
+                .Build();
+
+            _appDbContext.ApplicationUsers.AddRange(secondUser, firstUser);
+
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            var result = await _userRepository.GetAllAsync(CancellationToken.None);
+
+            Assert.HasCount(2, result);
+            Assert.AreEqual("Leia Organa", result[0].DisplayName);
+            Assert.AreEqual("Luke Skywalker", result[1].DisplayName);
+        }
+
+        [TestMethod]
+        public async Task GetAllAsync_Should_Return_Untracked_Users()
+        {
+            var user = new ApplicationUserBuilder().Build();
+
+            _appDbContext.ApplicationUsers.Add(user);
+            await _appDbContext.SaveChangesAsync();
+            _appDbContext.ChangeTracker.Clear();
+
+            var result = await _userRepository.GetAllAsync(CancellationToken.None);
+            var returnedUser = result.Single();
+
+            Assert.AreEqual(EntityState.Detached, _appDbContext.Entry(returnedUser).State);
+        }
+
+        [TestMethod]
+        public async Task GetAllAsync_Should_Respect_Cancelled_CancellationToken()
+        {
+            using var cancellationTokenSource = new CancellationTokenSource();
+
+            await cancellationTokenSource.CancelAsync();
+
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+                () => _userRepository.GetAllAsync(cancellationTokenSource.Token));
         }
     }
 }

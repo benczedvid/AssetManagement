@@ -40,12 +40,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_201_Created()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var request = new CreateAssetRequest(
                 AssetName: "HUHQLAP0287",
@@ -62,8 +64,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456789"
+                AssignedVendorId: null,
+                RfidTagId: "123456789",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -113,8 +116,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -125,12 +129,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_409_When_Serial_Number_Already_Exists()
         {
-            AddAuthenticatedHeaders();
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
+
             var firstAsset = new CreateAssetRequest(
                 AssetName: "HUHQLAP0287",
                 AssetType: AssetType.Notebook,
@@ -146,8 +152,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
             using var firstResponse = await _httpClient!.PostAsJsonAsync("/api/assets", firstAsset, CancellationToken.None);
 
@@ -166,8 +173,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
             using var secondResponse = await _httpClient!.PostAsJsonAsync("/api/assets", secondAsset, CancellationToken.None);
 
@@ -178,12 +186,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_400_When_Serial_Number_Is_Empty()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var request = new CreateAssetRequest(
                 AssetName: "HUHQLAP0287",
@@ -200,8 +210,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -211,12 +222,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_400_When_Asset_Name_Is_Empty()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var request = new CreateAssetRequest(
                 AssetName: string.Empty,
@@ -233,8 +246,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -244,12 +258,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_400_When_Asset_Type_Is_Unknown()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var request = new CreateAssetRequest(
                 AssetName: "HUHQLAP0287",
@@ -266,8 +282,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -277,12 +294,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_400_When_Asset_Status_Is_Unknown()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var request = new CreateAssetRequest(
                 AssetName: "HUHQLAP0287",
@@ -299,8 +318,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -310,12 +330,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_400_When_Manufacturer_Is_Empty()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var request = new CreateAssetRequest(
                 AssetName: "HUHQLAP0287",
@@ -332,8 +354,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -343,12 +366,14 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         [TestMethod]
         public async Task CreateAsset_Should_Return_400_When_Model_Is_Empty()
         {
-            AddAuthenticatedHeaders();
+
             var store = new StoreBuilder().Build();
             var user = new ApplicationUserBuilder().Build();
 
             await SeedStore(store);
             await SeedUser(user);
+
+            AddAuthenticatedHeaders(user);
 
             var request = new CreateAssetRequest(
                 AssetName: "HUHQLAP0287",
@@ -365,8 +390,9 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
                 AssignedEmployeeNumber: "103549",
                 AssignedStoreId: store.Id,
                 AssignedUserId: user.Id,
-                AssignedVendorId: Guid.NewGuid(),
-                RfidTagId: "123456"
+                AssignedVendorId: null,
+                RfidTagId: "123456",
+                WarrantyEndDate: null
                 );
 
             using var response = await _httpClient!.PostAsJsonAsync("/api/assets", request, CancellationToken.None);
@@ -375,11 +401,13 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.AssetControllers
         }
 
 
-        private void AddAuthenticatedHeaders()
+        private void AddAuthenticatedHeaders(ApplicationUser applicationUser)
         {
+            ArgumentNullException.ThrowIfNull(applicationUser);
+
             _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.AuthenticationHeader, "true");
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, Guid.NewGuid().ToString());
-            _httpClient!.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, Guid.NewGuid().ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraObjectIdHeader, applicationUser.EntraObjectId.ToString());
+            _httpClient.DefaultRequestHeaders.Add(TestAuthenticationHandler.EntraTenantIdHeader, applicationUser.EntraTenantId.ToString());
         }
 
         private async Task SeedStore(Store store)
