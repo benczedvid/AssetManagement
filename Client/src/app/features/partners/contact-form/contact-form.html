@@ -1,0 +1,84 @@
+<main class="min-h-screen bg-slate-100">
+  <section class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <form class="space-y-6" [formGroup]="form" (ngSubmit)="save()">
+      @if (saveError()) {
+      <div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800">
+        {{ saveError() }}
+      </div>
+      }
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div class="border-b border-slate-200 pb-5">
+          <h2 class="text-xl font-bold text-[#002B51]">{{ contactId ? 'Kontakt módosítása' : 'Új kontakt' }}</h2>
+        </div>
+
+        @if (isLoading()) {
+        <div class="flex min-h-32 items-center justify-center" role="status">
+          <div class="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#006AB2]" aria-hidden="true"></div>
+        </div>
+        } @else {
+        <div class="mt-6 grid gap-5 md:grid-cols-2">
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-500">Vezetéknév</span>
+            <input type="text" formControlName="lastName" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
+            @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+            <span class="mt-1 block text-xs text-red-700">A vezetéknév kötelező.</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-500">Keresztnév</span>
+            <input type="text" formControlName="firstName" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
+            @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+            <span class="mt-1 block text-xs text-red-700">A keresztnév kötelező.</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-500">Beosztás</span>
+            <input type="text" formControlName="jobTitle" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
+            @if (form.controls.jobTitle.touched && form.controls.jobTitle.invalid) {
+            <span class="mt-1 block text-xs text-red-700">A beosztás kötelező.</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-500">Beszállító</span>
+            <select formControlName="vendorId" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15">
+              <option [ngValue]="null">Nincs hozzárendelve</option>
+              @for (vendor of vendors(); track vendor.id) {
+              <option [ngValue]="vendor.id">{{ vendor.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-500">Telefonszám</span>
+            <input type="tel" formControlName="phoneNumber" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
+            @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
+            <span class="mt-1 block text-xs text-red-700">A telefonszám kötelező.</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-500">E-mail cím</span>
+            <input type="email" formControlName="emailAddress" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
+            @if (form.controls.emailAddress.touched && form.controls.emailAddress.invalid) {
+            <span class="mt-1 block text-xs text-red-700">Érvényes e-mail cím megadása kötelező.</span>
+            }
+          </label>
+        </div>
+        }
+      </div>
+
+      <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <a routerLink="/partners" class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          Mégse
+        </a>
+        <button type="submit" [disabled]="isSaving() || isLoading()"
+                class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#FFED00] px-5 py-3 text-sm font-bold text-[#002B51] hover:bg-[#f5e300] disabled:cursor-not-allowed disabled:opacity-60">
+          {{ isSaving() ? 'Mentés...' : 'Kontakt mentése' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</main>

@@ -85,7 +85,8 @@
           "options": {
             "polyfills": [
               "zone.js",
-              "zone.js/testing"
+              "zone.js/testing",
+              "src/testing/runtime-config.ts"
             ],
             "tsConfig": "tsconfig.spec.json",
             "assets": [
