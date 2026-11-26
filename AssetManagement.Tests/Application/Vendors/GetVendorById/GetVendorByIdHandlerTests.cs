@@ -74,12 +74,10 @@ namespace AssetManagement.Tests.Application.Vendors.GetVendorById
         {
             var vendor = new VendorBuilder().Build();
 
-            var contactId = vendor.AddContact(
-                firstName: "Jane",
-                lastName: "Smith",
-                jobTitle: "Account Manager",
-                emailAddress: "jane.smith@example.com",
-                phoneNumber: "+36 30 765 4321");
+            var contact = new ContactBuilder().Build();
+            var contactId = contact.ContactId;
+
+            vendor.AttachContact(contact);
 
             _repository.Seed(vendor);
 
@@ -87,14 +85,14 @@ namespace AssetManagement.Tests.Application.Vendors.GetVendorById
 
             Assert.HasCount(1, response.Contacts);
 
-            var contact = response.Contacts.Single();
+            var contactResponse = response.Contacts.Single();
 
-            Assert.AreEqual(contactId, contact.Id);
-            Assert.AreEqual("Jane", contact.FirstName);
-            Assert.AreEqual("Smith", contact.LastName);
-            Assert.AreEqual("Account Manager", contact.JobTitle);
-            Assert.AreEqual("+36 30 765 4321", contact.PhoneNumber);
-            Assert.AreEqual("jane.smith@example.com", contact.EmailAddress);
+            Assert.AreEqual(contactId, contactResponse.Id);
+            Assert.AreEqual("Jane", contactResponse.FirstName);
+            Assert.AreEqual("Smith", contactResponse.LastName);
+            Assert.AreEqual("Account Manager", contactResponse.JobTitle);
+            Assert.AreEqual("+36 30 765 4321", contactResponse.PhoneNumber);
+            Assert.AreEqual("jane.smith@example.com", contactResponse.EmailAddress);
         }
 
         [TestMethod]

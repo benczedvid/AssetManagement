@@ -1,5 +1,7 @@
 ﻿using AssetManagement.Application.Common.Authorization;
+using AssetManagement.Application.Vendors.AttachContactToVendor;
 using AssetManagement.Application.Vendors.CreateVendor;
+using AssetManagement.Application.Vendors.DetachContactFromVendor;
 using AssetManagement.Application.Vendors.GetVendorById;
 using AssetManagement.Application.Vendors.GetVendors;
 using AssetManagement.Application.Vendors.UpdateVendor;
@@ -18,22 +20,30 @@ namespace AssetManagement.WebApi.Controllers
         private readonly GetVendorByIdHandler _getVendorByIdHandler;
         private readonly GetVendorsHandler _getVendorsHandler;
         private readonly UpdateVendorHandler _updateVendorHandler;
+        private readonly AttachContactToVendorHandler _attachContactToVendorHandler;
+        private readonly DetachContactFromVendorHandler _detachContactFromVendorHandler;
 
         public VendorController(
             CreateVendorHandler createVendorHandler,
             GetVendorByIdHandler getVendorByIdHandler,
             GetVendorsHandler getVendorsHandler,
-            UpdateVendorHandler updateVendorHandler)
+            UpdateVendorHandler updateVendorHandler,
+            AttachContactToVendorHandler attachContactToVendorHandler,
+            DetachContactFromVendorHandler detachContactFromVendorHandler)
         {
             ArgumentNullException.ThrowIfNull(createVendorHandler);
             ArgumentNullException.ThrowIfNull(getVendorByIdHandler);
             ArgumentNullException.ThrowIfNull(getVendorsHandler);
             ArgumentNullException.ThrowIfNull(updateVendorHandler);
+            ArgumentNullException.ThrowIfNull(attachContactToVendorHandler);
+            ArgumentNullException.ThrowIfNull(detachContactFromVendorHandler);
 
             _createVendorHandler = createVendorHandler;
             _getVendorByIdHandler = getVendorByIdHandler;
             _getVendorsHandler = getVendorsHandler;
             _updateVendorHandler = updateVendorHandler;
+            _attachContactToVendorHandler = attachContactToVendorHandler;
+            _detachContactFromVendorHandler = detachContactFromVendorHandler;
         }
 
         /// <summary>
@@ -173,13 +183,15 @@ namespace AssetManagement.WebApi.Controllers
         ///
         /// The operation can be performed only if the specified vendor exists.
         ///
+        /// Contacts are not changed by this operation; use the vendor contact
+        /// endpoints to attach or detach contacts.
+        ///
         /// The authenticated user must have the ManageVendors permission and the
         /// required API scope.
         /// </remarks>
         /// <param name="id">The unique identifier of the vendor to update.</param>
         /// <param name="request">
-        /// The updated vendor data, including the name, address, webpage,
-        /// and contact information.
+        /// The updated vendor data, including the name, address and webpage.
         /// </param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>The updated vendor information.</returns>
@@ -193,7 +205,7 @@ namespace AssetManagement.WebApi.Controllers
         [RequiredScope(RequiredScopesConfigurationKey = "AzureAd:Scopes")]
         [Authorize(Policy = AuthorizationPolicies.ManageVendors)]
         [Produces("application/json")]
-        [ProducesResponseType<IReadOnlyList<UpdateVendorResponse>>(StatusCodes.Status200OK)]
+        [ProducesResponseType<UpdateVendorResponse>(StatusCodes.Status200OK)]
         [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
         [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
@@ -204,6 +216,69 @@ namespace AssetManagement.WebApi.Controllers
             var vendor = await _updateVendorHandler.HandleAsync(id, request, token);
 
             return Ok(vendor);
+        }
+
+        /// <summary>
+        /// Attaches an existing standalone contact to a vendor.
+        /// </summary>
+        /// <remarks>
+        /// A contact can be attached to at most one vendor. Attaching a contact that is
+        /// already attached to the same vendor has no effect.
+        /// </remarks>
+        /// <param name="id">The unique identifier of the vendor.</param>
+        /// <param name="contactId">The unique identifier of the contact.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <response code="204">The contact was attached successfully.</response>
+        /// <response code="401">Authentication is required to perform this operation.</response>
+        /// <response code="403">The user does not have permission or the required scope to manage vendors.</response>
+        /// <response code="404">The specified vendor or contact was not found.</response>
+        /// <response code="409">The contact is attached to another vendor, or its phone number is already used by a contact of this vendor.</response>
+        /// <response code="500">An unexpected error occurred while attaching the contact.</response>
+        [HttpPut("{id:guid}/contacts/{contactId:guid}")]
+        [RequiredScope(RequiredScopesConfigurationKey = "AzureAd:Scopes")]
+        [Authorize(Policy = AuthorizationPolicies.ManageVendors)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> AttachContact([FromRoute] Guid id, [FromRoute] Guid contactId, CancellationToken token)
+        {
+            await _attachContactToVendorHandler.HandleAsync(id, contactId, token);
+
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Detaches a contact from a vendor.
+        /// </summary>
+        /// <remarks>
+        /// The contact is not deleted; it remains available as a standalone contact.
+        /// </remarks>
+        /// <param name="id">The unique identifier of the vendor.</param>
+        /// <param name="contactId">The unique identifier of the contact.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <response code="204">The contact was detached successfully.</response>
+        /// <response code="401">Authentication is required to perform this operation.</response>
+        /// <response code="403">The user does not have permission or the required scope to manage vendors.</response>
+        /// <response code="404">The specified vendor was not found.</response>
+        /// <response code="409">The contact is not attached to this vendor.</response>
+        /// <response code="500">An unexpected error occurred while detaching the contact.</response>
+        [HttpDelete("{id:guid}/contacts/{contactId:guid}")]
+        [RequiredScope(RequiredScopesConfigurationKey = "AzureAd:Scopes")]
+        [Authorize(Policy = AuthorizationPolicies.ManageVendors)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DetachContact([FromRoute] Guid id, [FromRoute] Guid contactId, CancellationToken token)
+        {
+            await _detachContactFromVendorHandler.HandleAsync(id, contactId, token);
+
+            return NoContent();
         }
     }
 }

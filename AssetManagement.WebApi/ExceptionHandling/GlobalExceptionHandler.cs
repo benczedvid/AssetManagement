@@ -1,6 +1,7 @@
 ﻿using AssetManagement.Application.AssetMovements.Exceptions;
 using AssetManagement.Application.Assets;
 using AssetManagement.Application.Assets.DisposeAsset;
+using AssetManagement.Application.Contacts;
 using AssetManagement.Application.Employees;
 using AssetManagement.Application.Packages.Exceptions;
 using AssetManagement.Application.ServiceCases.Exceptions;
@@ -9,6 +10,7 @@ using AssetManagement.Application.Stores;
 using AssetManagement.Application.Users;
 using AssetManagement.Application.Vendors;
 using AssetManagement.Domain.Entities.Assets.Exceptions;
+using AssetManagement.Domain.Entities.Vendors.Exceptions;
 using AssetManagement.WebApi.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -131,6 +133,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             TimeoutException => CreateAssetLockTimeoutProblemDetails(context),
             VendorNotFoundException => VendorNotFoundProblemDetails(context),
             VendorAlreadyExistsException => VendorAlreadyExistsProblemDetails(context),
+            ContactNotFoundException => ContactNotFoundProblemDetails(context),
+            VendorContactConflictException => VendorContactConflictProblemDetails(context, exception.Message),
             EmployeeNotFoundException => EmployeeNotFoundProblemDetails(context),
             ApplicationUserNotFoundException => ApplicationUserNotFoundProblemDetails(context),
             ServiceCaseNotFoundException => CreateServiceCaseProblemDetails(
@@ -274,6 +278,23 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             Title = "A resource conflict occurred.",
             Status = StatusCodes.Status409Conflict,
             Detail = "The vendor with the specified identifier already exists.",
+            Instance = context.Request.Path
+        };
+    }
+
+    private static ProblemDetails ContactNotFoundProblemDetails(HttpContext context)
+    {
+        return CreateNotFoundProblemDetails(context, "The requested contact does not exist.");
+    }
+
+    private static ProblemDetails VendorContactConflictProblemDetails(HttpContext context, string detail)
+    {
+        return new ProblemDetails
+        {
+            Type = ResolveProblemType(StatusCodes.Status409Conflict),
+            Title = "The vendor contact operation conflicts with the current state.",
+            Status = StatusCodes.Status409Conflict,
+            Detail = detail,
             Instance = context.Request.Path
         };
     }

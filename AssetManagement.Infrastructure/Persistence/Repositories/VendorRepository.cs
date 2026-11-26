@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssetManagement.Infrastructure.Persistence.Repositories
 {
-    internal class VendorRepository : IVendorRepository
+    public sealed class VendorRepository : IVendorRepository
     {
 
         private readonly AppDbContext _appDbContext;

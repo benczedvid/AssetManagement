@@ -4,6 +4,7 @@ using AssetManagement.Domain.Entities.Users;
 using AssetManagement.Domain.Entities.Stores;
 using AssetManagement.Domain.Entities.AssetMovements;
 using AssetManagement.Domain.Entities.Assets;
+using AssetManagement.Domain.Entities.Contacts;
 using AssetManagement.Domain.Entities.Vendors;
 using AssetManagement.Domain.Entities.AssetHistories;
 using AssetManagement.Domain.Entities.ServiceCases;

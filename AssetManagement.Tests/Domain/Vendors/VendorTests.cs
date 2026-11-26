@@ -1,4 +1,5 @@
 ﻿using AssetManagement.Domain.Entities.ValueObjects.Address;
+using AssetManagement.Domain.Entities.Vendors.Exceptions;
 using AssetManagement.Tests.Builders;
 
 namespace AssetManagement.Tests.Domain.Vendors
@@ -208,267 +209,155 @@ namespace AssetManagement.Tests.Domain.Vendors
         }
 
         [TestMethod]
-        public void AddContact_Should_Add_Contact_And_Return_Id()
+        public void AttachContact_Should_Attach_Standalone_Contact()
         {
             var vendor = new VendorBuilder().Build();
+            var contact = new ContactBuilder().Build();
 
-            var contactId = vendor.AddContact(
-                firstName: "John",
-                lastName: "Doe",
-                jobTitle: "Sales Manager",
-                emailAddress: "john.doe@example.com",
-                phoneNumber: "+36 30 123 4567");
+            vendor.AttachContact(contact);
 
-            Assert.AreNotEqual(Guid.Empty, contactId);
-            Assert.AreEqual(1, vendor.Contacts.Count);
-
-            var contact = vendor.Contacts.Single();
-
-            Assert.AreEqual(contactId, contact.ContactId);
             Assert.AreEqual(vendor.VendorId, contact.VendorId);
-            Assert.AreEqual("John", contact.FirstName);
-            Assert.AreEqual("Doe", contact.LastName);
-            Assert.AreEqual("Sales Manager", contact.JobTitle);
-            Assert.AreEqual("john.doe@example.com", contact.EmailAddress);
-            Assert.AreEqual("+36 30 123 4567", contact.PhoneNumber);
+            Assert.IsTrue(contact.IsAttachedToVendor);
+            Assert.AreSame(contact, vendor.Contacts.Single());
         }
 
         [TestMethod]
-        public void AddContact_Should_Trim_Contact_Values()
+        public void AttachContact_Should_Throw_When_Contact_Is_Null()
         {
             var vendor = new VendorBuilder().Build();
 
-            vendor.AddContact(
-                firstName: "  John  ",
-                lastName: "  Doe  ",
-                jobTitle: "  Sales Manager  ",
-                emailAddress: "  john.doe@example.com  ",
-                phoneNumber: "  +36 30 123 4567  ");
+            var exception = Assert.ThrowsExactly<ArgumentNullException>(() => vendor.AttachContact(null!));
 
-            var contact = vendor.Contacts.Single();
-
-            Assert.AreEqual("John", contact.FirstName);
-            Assert.AreEqual("Doe", contact.LastName);
-            Assert.AreEqual("Sales Manager", contact.JobTitle);
-            Assert.AreEqual("john.doe@example.com", contact.EmailAddress);
-            Assert.AreEqual("+36 30 123 4567", contact.PhoneNumber);
+            Assert.AreEqual("contact", exception.ParamName);
         }
 
         [TestMethod]
-        [DataRow("")]
-        [DataRow(" ")]
-        [DataRow("\t")]
-        public void AddContact_Should_Throw_When_FirstName_Is_Whitespace(
-            string invalidFirstName)
+        public void AttachContact_Should_Be_Idempotent_For_Same_Vendor()
         {
             var vendor = new VendorBuilder().Build();
+            var contact = new ContactBuilder().Build();
 
-            var exception =
-                Assert.ThrowsExactly<ArgumentException>(
-                    () => vendor.AddContact(
-                        firstName: invalidFirstName,
-                        lastName: "Doe",
-                        jobTitle: "Sales Manager",
-                        emailAddress:
-                            "john.doe@example.com",
-                        phoneNumber:
-                            "+36 30 123 4567"));
+            vendor.AttachContact(contact);
+            vendor.AttachContact(contact);
 
-            Assert.AreEqual("firstName", exception.ParamName);
-            Assert.AreEqual(0, vendor.Contacts.Count);
+            Assert.AreEqual(1, vendor.Contacts.Count);
+            Assert.AreEqual(vendor.VendorId, contact.VendorId);
         }
 
         [TestMethod]
-        public void AddContact_Should_Throw_When_PhoneNumber_Is_Null()
+        public void AttachContact_Should_Throw_When_Contact_Is_Attached_To_Another_Vendor()
         {
-            var vendor = new VendorBuilder().Build();
+            var firstVendor = new VendorBuilder().Build();
+            var secondVendor = new VendorBuilder().WithName("Other Supplier Kft.").Build();
+            var contact = new ContactBuilder().Build();
 
-            var exception =
-                Assert.ThrowsExactly<ArgumentNullException>(
-                    () => vendor.AddContact(
-                        firstName: "John",
-                        lastName: "Doe",
-                        jobTitle: "Sales Manager",
-                        emailAddress:
-                            "john.doe@example.com",
-                        phoneNumber: null!));
+            firstVendor.AttachContact(contact);
 
-            Assert.AreEqual("phoneNumber", exception.ParamName);
-            Assert.AreEqual(0, vendor.Contacts.Count);
+            Assert.ThrowsExactly<VendorContactConflictException>(() => secondVendor.AttachContact(contact));
+
+            Assert.AreEqual(firstVendor.VendorId, contact.VendorId);
+            Assert.AreEqual(0, secondVendor.Contacts.Count);
         }
 
         [TestMethod]
-        public void AddContact_Should_Throw_When_PhoneNumber_Already_Exists()
+        public void AttachContact_Should_Throw_When_PhoneNumber_Is_Already_Used_By_Vendor_Contact()
         {
             var vendor = new VendorBuilder().Build();
+            var firstContact = new ContactBuilder().WithPhoneNumber("+36 30 123 4567").Build();
+            var secondContact = new ContactBuilder().WithFirstName("John").WithPhoneNumber("  +36 30 123 4567  ").Build();
 
-            vendor.AddContact(
-                firstName: "John",
-                lastName: "Doe",
-                jobTitle: "Sales Manager",
-                emailAddress: "john.doe@example.com",
-                phoneNumber: "+36 30 123 4567");
+            vendor.AttachContact(firstContact);
 
-            Assert.ThrowsExactly<InvalidOperationException>(
-                () => vendor.AddContact(
-                    firstName: "Jane",
-                    lastName: "Smith",
-                    jobTitle: "Account Manager",
-                    emailAddress: "jane.smith@example.com",
-                    phoneNumber: "  +36 30 123 4567  "));
+            Assert.ThrowsExactly<VendorContactConflictException>(() => vendor.AttachContact(secondContact));
 
+            Assert.IsNull(secondContact.VendorId);
             Assert.AreEqual(1, vendor.Contacts.Count);
         }
 
         [TestMethod]
-        public void UpdateContact_Should_Update_All_Contact_Properties()
+        public void AttachContact_Should_Allow_Same_PhoneNumber_At_Different_Vendors()
         {
-            var vendor = new VendorBuilder().Build();
+            var firstVendor = new VendorBuilder().Build();
+            var secondVendor = new VendorBuilder().WithName("Other Supplier Kft.").Build();
+            var firstContact = new ContactBuilder().Build();
+            var secondContact = new ContactBuilder().Build();
 
-            var contactId = vendor.AddContact(
-                firstName: "John",
-                lastName: "Doe",
-                jobTitle: "Sales Manager",
-                emailAddress: "john.doe@example.com",
-                phoneNumber: "+36 30 123 4567");
+            firstVendor.AttachContact(firstContact);
+            secondVendor.AttachContact(secondContact);
 
-            vendor.UpdateContact(
-                contactId: contactId,
-                firstName: "Jane",
-                lastName: "Smith",
-                jobTitle: "Account Manager",
-                emailAddress: "jane.smith@example.com",
-                phoneNumber: "+36 30 765 4321");
-
-            var contact = vendor.Contacts.Single();
-
-            Assert.AreEqual(contactId, contact.ContactId);
-            Assert.AreEqual(vendor.VendorId, contact.VendorId);
-            Assert.AreEqual("Jane", contact.FirstName);
-            Assert.AreEqual("Smith", contact.LastName);
-            Assert.AreEqual("Account Manager", contact.JobTitle);
-            Assert.AreEqual("jane.smith@example.com", contact.EmailAddress);
-            Assert.AreEqual("+36 30 765 4321", contact.PhoneNumber);
+            Assert.AreEqual(secondVendor.VendorId, secondContact.VendorId);
         }
 
         [TestMethod]
-        public void UpdateContact_Should_Allow_Contact_To_Keep_Its_PhoneNumber()
+        public void DetachContact_Should_Detach_Contact_And_Keep_It_Standalone()
         {
             var vendor = new VendorBuilder().Build();
+            var contact = new ContactBuilder().Build();
 
-            var contactId = vendor.AddContact(
-                firstName: "John",
-                lastName: "Doe",
-                jobTitle: "Sales Manager",
-                emailAddress: "john.doe@example.com",
-                phoneNumber: "+36 30 123 4567");
+            vendor.AttachContact(contact);
+            vendor.DetachContact(contact.ContactId);
 
-            vendor.UpdateContact(
-                contactId: contactId,
-                firstName: "John",
-                lastName: "Doe",
-                jobTitle: "Senior Sales Manager",
-                emailAddress: "john.doe@example.com",
-                phoneNumber: "+36 30 123 4567");
-
-            Assert.AreEqual("Senior Sales Manager", vendor.Contacts.Single().JobTitle);
+            Assert.AreEqual(0, vendor.Contacts.Count);
+            Assert.IsNull(contact.VendorId);
+            Assert.IsFalse(contact.IsAttachedToVendor);
         }
 
         [TestMethod]
-        public void UpdateContact_Should_Throw_When_Other_Contact_Has_PhoneNumber()
+        public void DetachContact_Should_Allow_Contact_To_Be_Attached_To_Another_Vendor()
         {
-            var vendor = new VendorBuilder().Build();
+            var firstVendor = new VendorBuilder().Build();
+            var secondVendor = new VendorBuilder().WithName("Other Supplier Kft.").Build();
+            var contact = new ContactBuilder().Build();
 
-            var firstContactId = vendor.AddContact(
-                firstName: "John",
-                lastName: "Doe",
-                jobTitle: "Sales Manager",
-                emailAddress: "john.doe@example.com",
-                phoneNumber: "+36 30 111 1111");
+            firstVendor.AttachContact(contact);
+            firstVendor.DetachContact(contact.ContactId);
+            secondVendor.AttachContact(contact);
 
-            vendor.AddContact(
-                firstName: "Jane",
-                lastName: "Smith",
-                jobTitle: "Account Manager",
-                emailAddress: "jane.smith@example.com",
-                phoneNumber: "+36 30 222 2222");
-
-            Assert.ThrowsExactly<InvalidOperationException>(
-                () => vendor.UpdateContact(
-                    contactId: firstContactId,
-                    firstName: "John",
-                    lastName: "Doe",
-                    jobTitle: "Sales Manager",
-                    emailAddress: "john.doe@example.com",
-                    phoneNumber: "+36 30 222 2222"));
+            Assert.AreEqual(secondVendor.VendorId, contact.VendorId);
         }
 
         [TestMethod]
-        public void UpdateContact_Should_Throw_When_ContactId_Is_Empty()
+        public void DetachContact_Should_Throw_When_ContactId_Is_Empty()
         {
             var vendor = new VendorBuilder().Build();
 
-            var exception =
-                Assert.ThrowsExactly<ArgumentException>(
-                    () => vendor.UpdateContact(
-                        contactId: Guid.Empty,
-                        firstName: "John",
-                        lastName: "Doe",
-                        jobTitle: "Sales Manager",
-                        emailAddress: "john.doe@example.com",
-                        phoneNumber: "+36 30 123 4567"));
+            var exception = Assert.ThrowsExactly<ArgumentException>(() => vendor.DetachContact(Guid.Empty));
 
             Assert.AreEqual("contactId", exception.ParamName);
         }
 
         [TestMethod]
-        public void UpdateContact_Should_Throw_When_Contact_Is_Not_Found()
+        public void DetachContact_Should_Throw_When_Contact_Is_Not_Attached_To_Vendor()
         {
             var vendor = new VendorBuilder().Build();
 
-            Assert.ThrowsExactly<InvalidOperationException>(
-                () => vendor.UpdateContact(
-                    contactId: Guid.NewGuid(),
-                    firstName: "John",
-                    lastName: "Doe",
-                    jobTitle: "Sales Manager",
-                    emailAddress: "john.doe@example.com",
-                    phoneNumber: "+36 30 123 4567"));
+            Assert.ThrowsExactly<VendorContactConflictException>(() => vendor.DetachContact(Guid.NewGuid()));
         }
 
         [TestMethod]
-        public void RemoveContact_Should_Remove_Contact()
+        public void EnsureContactPhoneNumberIsUnique_Should_Throw_When_Other_Contact_Has_PhoneNumber()
         {
             var vendor = new VendorBuilder().Build();
+            var firstContact = new ContactBuilder().WithPhoneNumber("+36 30 111 1111").Build();
+            var secondContact = new ContactBuilder().WithPhoneNumber("+36 30 222 2222").Build();
 
-            var contactId = vendor.AddContact(
-                firstName: "John",
-                lastName: "Doe",
-                jobTitle: "Sales Manager",
-                emailAddress: "john.doe@example.com",
-                phoneNumber: "+36 30 123 4567");
+            vendor.AttachContact(firstContact);
+            vendor.AttachContact(secondContact);
 
-            vendor.RemoveContact(contactId);
+            firstContact.Update("Jane", "Smith", "Account Manager", "jane.smith@example.com", "+36 30 222 2222");
 
-            Assert.AreEqual(0, vendor.Contacts.Count);
+            Assert.ThrowsExactly<VendorContactConflictException>(() => vendor.EnsureContactPhoneNumberIsUnique(firstContact));
         }
 
         [TestMethod]
-        public void RemoveContact_Should_Throw_When_ContactId_Is_Empty()
+        public void EnsureContactPhoneNumberIsUnique_Should_Allow_Contact_To_Keep_Its_PhoneNumber()
         {
             var vendor = new VendorBuilder().Build();
+            var contact = new ContactBuilder().Build();
 
-            var exception = Assert.ThrowsExactly<ArgumentException>(() => vendor.RemoveContact(Guid.Empty));
+            vendor.AttachContact(contact);
 
-            Assert.AreEqual("contactId", exception.ParamName);
-        }
-
-        [TestMethod]
-        public void RemoveContact_Should_Throw_When_Contact_Is_Not_Found()
-        {
-            var vendor = new VendorBuilder().Build();
-
-            Assert.ThrowsExactly<InvalidOperationException>(() => vendor.RemoveContact(Guid.NewGuid()));
+            vendor.EnsureContactPhoneNumberIsUnique(contact);
         }
     }
 }

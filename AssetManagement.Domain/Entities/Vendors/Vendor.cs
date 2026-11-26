@@ -1,4 +1,6 @@
-﻿using AssetManagement.Domain.Entities.ValueObjects.Address;
+﻿using AssetManagement.Domain.Entities.Contacts;
+using AssetManagement.Domain.Entities.ValueObjects.Address;
+using AssetManagement.Domain.Entities.Vendors.Exceptions;
 
 namespace AssetManagement.Domain.Entities.Vendors
 {
@@ -80,84 +82,70 @@ namespace AssetManagement.Domain.Entities.Vendors
             Webpage = normalizedWebpage;
         }
 
-        public Guid AddContact(
-            string firstName,
-            string lastName,
-            string jobTitle,
-            string emailAddress,
-            string phoneNumber)
+        /// <summary>
+        /// Attaches a standalone contact to this vendor.
+        /// Attaching a contact that is already attached to this vendor has no effect.
+        /// </summary>
+        public void AttachContact(Contact contact)
         {
-            EnsurePhoneNumberIsUnique(phoneNumber: phoneNumber, excludeContactId: null);
+            ArgumentNullException.ThrowIfNull(contact);
 
-            var contact = Contact.Create(
-                vendorId: VendorId,
-                firstName: firstName,
-                lastName: lastName,
-                jobTitle: jobTitle,
-                emailAddress: emailAddress,
-                phoneNumber: phoneNumber);
+            if (contact.VendorId == VendorId)
+            {
+                if (_contacts.All(currentContact => currentContact.ContactId != contact.ContactId))
+                {
+                    _contacts.Add(contact);
+                }
 
+                return;
+            }
+
+            if (contact.IsAttachedToVendor)
+            {
+                throw new VendorContactConflictException("The contact is already attached to another vendor.");
+            }
+
+            EnsureContactPhoneNumberIsUnique(contact);
+
+            contact.AssignToVendor(VendorId);
             _contacts.Add(contact);
-
-            return contact.ContactId;
         }
 
-        public void UpdateContact(
-            Guid contactId,
-            string firstName,
-            string lastName,
-            string jobTitle,
-            string emailAddress,
-            string phoneNumber)
-        {
-            var contact = GetContact(contactId);
-            
-            EnsurePhoneNumberIsUnique(phoneNumber: phoneNumber, excludeContactId: contactId);
-
-            contact.Update(
-                firstName: firstName,
-                lastName: lastName,
-                jobTitle: jobTitle,
-                emailAddress: emailAddress,
-                phoneNumber: phoneNumber);
-        }
-
-        public void RemoveContact(Guid contactId)
-        {
-            var contact = GetContact(contactId);
-
-            _contacts.Remove(contact);
-        }
-
-        private Contact GetContact(Guid contactId)
+        /// <summary>
+        /// Detaches a contact from this vendor. The contact itself is kept as a standalone contact.
+        /// </summary>
+        public void DetachContact(Guid contactId)
         {
             if (contactId == Guid.Empty)
             {
                 throw new ArgumentException("A valid contact identifier must be specified.", nameof(contactId));
             }
 
-            var contact = _contacts.SingleOrDefault(currentContact => currentContact.ContactId == contactId);
+            var contact = _contacts.SingleOrDefault(currentContact => currentContact.ContactId == contactId)
+                ?? throw new VendorContactConflictException("The contact is not attached to this vendor.");
 
-            return contact ?? throw new InvalidOperationException("The contact was not found for this vendor.");
+            contact.DetachFromVendor();
+            _contacts.Remove(contact);
         }
 
-        private void EnsurePhoneNumberIsUnique(string phoneNumber, Guid? excludeContactId)
+        /// <summary>
+        /// Ensures that no other contact attached to this vendor has the same phone number as the given contact.
+        /// </summary>
+        public void EnsureContactPhoneNumberIsUnique(Contact contact)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(phoneNumber);
-
-            var normalizedPhoneNumber = phoneNumber.Trim();
+            ArgumentNullException.ThrowIfNull(contact);
 
             var alreadyExists = _contacts.Any(
-                contact =>
-                    contact.ContactId != excludeContactId &&
+                currentContact =>
+                    currentContact.ContactId != contact.ContactId &&
                     string.Equals(
+                        currentContact.PhoneNumber,
                         contact.PhoneNumber,
-                        normalizedPhoneNumber,
                         StringComparison.OrdinalIgnoreCase));
 
             if (alreadyExists)
             {
-                throw new InvalidOperationException("A contact with the same phone number already exists for this vendor.");
+                throw new VendorContactConflictException("A contact with the same phone number is already attached to this vendor.");
             }
         }
 
