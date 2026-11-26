@@ -14,24 +14,41 @@
       <button type="button" class="mt-4 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500" (click)="load()">Újrapróbálkozás</button>
     </div>
     } @else {
+      <div class="mb-3 flex flex-wrap items-center gap-3 sm:flex-nowrap">
+        <ng-container *ngTemplateOutlet="addButton; context: { link: '/partners/vendors/new', query: null, label: 'Új beszállító' }" />
+
+        <label class="relative order-last w-full sm:order-none sm:w-auto sm:flex-1">
+          <span class="sr-only">Keresés</span>
+          <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path stroke-linecap="round" d="m20 20-3.5-3.5" />
+          </svg>
+          <input type="search" [value]="searchTerm()" (input)="search($any($event.target).value)"
+                 placeholder="Keresés: beszállító, név, telefonszám, e-mail"
+                 class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
+        </label>
+
+        <div class="ml-auto sm:ml-0">
+          <ng-container *ngTemplateOutlet="addButton; context: { link: '/partners/contacts/new', query: selectedVendorId() ? { vendorId: selectedVendorId() } : null, label: 'Új kontakt' }" />
+        </div>
+      </div>
+
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Beszállítók -->
       <div>
-        <ng-container *ngTemplateOutlet="addButton; context: { link: '/partners/vendors/new', query: null, label: 'Új beszállító' }" />
-
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div class="bg-[#002B51] px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">Beszállítók</div>
 
-          @if (vendors().length === 0) {
+          @if (visibleVendors().length === 0) {
           <p class="px-5 py-10 text-center text-sm text-slate-600">Jelenleg nincs megjeleníthető beszállító.</p>
           } @else {
           <ul class="divide-y divide-slate-200">
-            @for (vendor of vendors(); track vendor.id) {
+            @for (vendor of visibleVendors(); track vendor.id) {
             <li class="flex items-center justify-between gap-3 px-5 py-4 transition-colors"
                 [class]="vendor.id === selectedVendorId() ? 'bg-[#FFED00]/25' : 'hover:bg-slate-50'">
               <button type="button" class="min-w-0 flex-1 text-left" [attr.aria-pressed]="vendor.id === selectedVendorId()" (click)="toggleVendor(vendor.id)">
                 <p class="truncate font-semibold text-[#002B51]">{{ vendor.name }}</p>
-                <p class="truncate text-sm text-slate-500">{{ vendor.address.postalCode }} {{ vendor.address.city }}</p>
+                <p class="truncate text-sm text-slate-500" [title]="formatAddress(vendor.address)">{{ formatAddress(vendor.address) }}</p>
               </button>
               @if (vendor.id === selectedVendorId()) {
               <ng-container *ngTemplateOutlet="editButton; context: { link: ['/partners/vendors', vendor.id, 'edit'], label: 'Beszállító módosítása' }" />
@@ -45,7 +62,6 @@
 
       <!-- Kontaktok -->
       <div>
-        <ng-container *ngTemplateOutlet="addButton; context: { link: '/partners/contacts/new', query: selectedVendorId() ? { vendorId: selectedVendorId() } : null, label: 'Új kontakt' }" />
 
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div class="flex items-center justify-between gap-3 bg-[#002B51] px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">
@@ -108,7 +124,7 @@
 
 <ng-template #addButton let-link="link" let-query="query" let-label="label">
   <a [routerLink]="link" [queryParams]="query"
-     class="mb-3 inline-flex items-center justify-center gap-2 rounded-lg bg-[#FFED00] px-4 py-2.5 text-sm font-bold text-[#002B51] transition-all hover:-translate-y-0.5 hover:bg-[#f5e300] focus:outline-none focus:ring-4 focus:ring-[#FFED00]/30">
+     class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#FFED00] px-4 py-2.5 text-sm font-bold text-[#002B51] transition-all hover:-translate-y-0.5 hover:bg-[#f5e300] focus:outline-none focus:ring-4 focus:ring-[#FFED00]/30">
     <span class="text-lg leading-none" aria-hidden="true">+</span>
     <span>{{ label }}</span>
   </a>

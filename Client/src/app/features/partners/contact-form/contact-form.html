@@ -53,9 +53,11 @@
 
           <label class="block">
             <span class="text-sm font-semibold text-slate-500">Telefonszám</span>
-            <input type="tel" formControlName="phoneNumber" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
+            <input type="tel" formControlName="phoneNumber" [placeholder]="phoneNumberExample" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#006AB2] focus:ring-4 focus:ring-[#006AB2]/15" />
             @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
-            <span class="mt-1 block text-xs text-red-700">A telefonszám kötelező.</span>
+            <span class="mt-1 block text-xs text-red-700">
+              {{ form.controls.phoneNumber.hasError('required') ? 'A telefonszám kötelező.' : 'Nemzetközi formátumban adja meg, pl. ' + phoneNumberExample }}
+            </span>
             }
           </label>
 

@@ -7,6 +7,7 @@ import { GetVendorsResponse } from '../../vendors/data-access/models/get-vendors
 import { VendorApiService } from '../../vendors/data-access/vendor-api';
 import { ContactApiService } from '../data-access/contact-api';
 import { SaveContactRequest } from '../data-access/models/contact';
+import { PHONE_NUMBER_EXAMPLE, PHONE_NUMBER_PATTERN } from '../data-access/phone-number';
 
 /**
  * Create and edit form for contacts; edit mode when the route has an :id.
@@ -25,6 +26,7 @@ export class ContactForm implements OnInit {
   private readonly route = inject(ActivatedRoute).snapshot;
 
   readonly contactId = this.route.paramMap.get('id');
+  readonly phoneNumberExample = PHONE_NUMBER_EXAMPLE;
   readonly vendors = signal<readonly GetVendorsResponse[]>([]);
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
@@ -37,7 +39,7 @@ export class ContactForm implements OnInit {
     lastName: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
     firstName: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
     jobTitle: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
-    phoneNumber: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(30)] }),
+    phoneNumber: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(30), Validators.pattern(PHONE_NUMBER_PATTERN)] }),
     emailAddress: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email, Validators.maxLength(200)] }),
     vendorId: new FormControl<string | null>(this.route.queryParamMap.get('vendorId')),
   });
