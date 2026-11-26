@@ -73,7 +73,7 @@ namespace AssetManagement.Tests.Application.Contacts
             var handler = new CreateContactHandler(_contactRepository);
 
             await Assert.ThrowsAsync<ArgumentException>(
-                () => handler.HandleAsync(new CreateContactRequest(" ", "Doe", "Sales", "+36", "a@b.hu"), CancellationToken.None));
+                () => handler.HandleAsync(new CreateContactRequest(" ", "Doe", "Sales", "+36 30 123 4567", "a@b.hu"), CancellationToken.None));
 
             Assert.AreEqual(0, _contactRepository.AddCallCount);
             Assert.AreEqual(0, _contactRepository.SaveChangesCallCount);
@@ -141,7 +141,7 @@ namespace AssetManagement.Tests.Application.Contacts
             await Assert.ThrowsExactlyAsync<ContactNotFoundException>(
                 () => new UpdateContactHandler(_contactRepository, _vendorRepository).HandleAsync(
                     Guid.NewGuid(),
-                    new UpdateContactRequest("John", "Doe", "Sales", "+36", "a@b.hu"),
+                    new UpdateContactRequest("John", "Doe", "Sales", "+36 30 123 4567", "a@b.hu"),
                     CancellationToken.None));
 
             Assert.AreEqual(0, _contactRepository.SaveChangesCallCount);

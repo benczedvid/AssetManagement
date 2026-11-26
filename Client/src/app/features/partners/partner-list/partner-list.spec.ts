@@ -12,8 +12,9 @@ describe('PartnerList', () => {
 
   const address = { countryCode: 'HUN', postalCode: '1117', city: 'Budapest', street: 'Budafoki', publicSpace: 'Street', houseNumber: '56' };
   const contact = (id: string, vendorId: string | null) => ({
-    id, firstName: 'Jane', lastName: id, jobTitle: 'Sales', phoneNumber: '+36', emailAddress: 'a@b.hu', vendorId,
+    id, firstName: 'Jane', lastName: id, jobTitle: 'Sales', phoneNumber: '+36 30 123 4567', emailAddress: 'a@b.hu', vendorId,
   });
+  const ids = (items: readonly { id: string }[]) => items.map(item => item.id);
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -31,7 +32,9 @@ describe('PartnerList', () => {
       { id: 'v2', name: 'Szerviz Zrt.', address, webpage: null },
     ]);
     httpTesting.expectOne(`${environment.api.baseUrl}/contacts`).flush([
-      contact('c1', 'v1'), contact('c2', 'v2'), contact('c3', null),
+      contact('c1', 'v1'),
+      { ...contact('c2', 'v2'), lastName: 'Kovács', phoneNumber: '+36 20 555 1234', emailAddress: 'kovacs@szerviz.hu' },
+      contact('c3', null),
     ]);
     fixture.detectChanges();
   });
@@ -48,6 +51,37 @@ describe('PartnerList', () => {
 
     component.toggleVendor('v1');
     expect(component.visibleContacts().length).toBe(3);
+  });
+
+  it('searches by vendor name, contact name, phone number and e-mail address', () => {
+    component.search('tech');
+    expect(ids(component.visibleVendors())).toEqual(['v1']);
+    expect(ids(component.visibleContacts())).toEqual(['c1']);
+
+    component.search('kovacs');
+    expect(ids(component.visibleContacts())).toEqual(['c2']);
+    expect(ids(component.visibleVendors())).toEqual(['v2']);
+
+    component.search('20 5551');
+    expect(ids(component.visibleContacts())).toEqual(['c2']);
+
+    component.search('@SZERVIZ.hu');
+    expect(ids(component.visibleContacts())).toEqual(['c2']);
+
+    component.search('');
+    expect(component.visibleContacts().length).toBe(3);
+    expect(component.visibleVendors().length).toBe(2);
+  });
+
+  it('combines the search with the selected vendor', () => {
+    component.toggleVendor('v1');
+    component.search('kovacs');
+
+    expect(component.visibleContacts().length).toBe(0);
+  });
+
+  it('shows the full vendor address with the Hungarian public space label', () => {
+    expect(fixture.nativeElement.textContent).toContain('1117 Budapest, Budafoki utca 56.');
   });
 
   it('shows the company name and the edit icon only for the selected rows', () => {

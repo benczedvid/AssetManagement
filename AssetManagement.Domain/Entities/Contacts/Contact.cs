@@ -1,11 +1,20 @@
-﻿namespace AssetManagement.Domain.Entities.Contacts
+﻿using System.Text.RegularExpressions;
+
+namespace AssetManagement.Domain.Entities.Contacts
 {
     /// <summary>
     /// A standalone contact person. A contact does not belong to any vendor
     /// when it is created, but it can be attached to (and detached from) a vendor.
     /// </summary>
-    public sealed class Contact
+    public sealed partial class Contact
     {
+        /// <summary>
+        /// International phone number format: a leading '+' and country code, followed by
+        /// 6-12 further digits that may be grouped with single spaces or hyphens
+        /// (e.g. "+36 30 123 4567", "+36-1-234-5678", "+4915112345678").
+        /// </summary>
+        public const string PhoneNumberPattern = @"^\+[1-9][0-9]{0,2}(?:[ -]?[0-9]){6,12}$";
+
         public Guid ContactId { get; private set; }
         public Guid? VendorId { get; private set; }
         public string FirstName { get; private set; } = string.Empty;
@@ -105,6 +114,16 @@
             ArgumentException.ThrowIfNullOrWhiteSpace(jobTitle);
             ArgumentException.ThrowIfNullOrWhiteSpace(emailAddress);
             ArgumentException.ThrowIfNullOrWhiteSpace(phoneNumber);
+
+            if (!PhoneNumberRegex().IsMatch(phoneNumber.Trim()))
+            {
+                throw new ArgumentException(
+                    "The phone number must be in international format, for example +36 30 123 4567.",
+                    nameof(phoneNumber));
+            }
         }
+
+        [GeneratedRegex(PhoneNumberPattern, RegexOptions.CultureInvariant)]
+        private static partial Regex PhoneNumberRegex();
     }
 }

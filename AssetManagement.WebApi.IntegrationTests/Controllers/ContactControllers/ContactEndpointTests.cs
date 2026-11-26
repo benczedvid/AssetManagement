@@ -80,6 +80,18 @@ namespace AssetManagement.WebApi.IntegrationTests.Controllers.ContactControllers
         }
 
         [TestMethod]
+        public async Task CreateContact_Should_Return_400_When_PhoneNumber_Format_Is_Invalid()
+        {
+            AddAuthenticatedHeaders();
+
+            var request = new CreateContactRequest("John", "Doe", "Sales Manager", "06/30-123", "john.doe@example.com");
+
+            using var response = await _httpClient!.PostAsJsonAsync(Endpoint, request, _jsonOptions, CancellationToken.None);
+
+            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [TestMethod]
         public async Task CreateContact_Should_Return_401_When_Request_Is_Not_Authenticated()
         {
             var request = new CreateContactRequest("John", "Doe", "Sales Manager", "+36 30 123 4567", "john.doe@example.com");
