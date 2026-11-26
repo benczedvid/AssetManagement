@@ -1,0 +1,146 @@
+@let packageItem = packageDetails();
+
+<section class="package-receive" [attr.aria-busy]="busy()">
+  <!-- Package information -->
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <div class="package-heading">
+        <strong class="package-number">{{ packageItem.packageNumber }}</strong>
+
+        <span class="package-status" [attr.data-status]="packageItem.status">{{ getStatusLabel(packageItem.status) }}</span>
+      </div>
+
+      <dl class="summary-grid">
+        <div>
+          <dt>Feladó</dt>
+          <dd class="store-name">{{ packageItem.sourceStoreName }}</dd>
+          <dd class="secondary-text">{{ packageItem.sourceStoreNumber }}</dd>
+        </div>
+
+        <div class="destination-summary">
+          <dt>Érkeztetés helye</dt>
+          <dd class="store-name">{{ packageItem.destinationStoreName }}</dd>
+          <dd class="secondary-text">{{ packageItem.destinationStoreNumber }}</dd>
+        </div>
+
+        <div>
+          <dt>Eszközök száma</dt>
+          <dd class="asset-count">{{ packageItem.items.length }}</dd>
+        </div>
+
+        @if (packageItem.courierUserName) {
+          <div>
+            <dt>Futár</dt>
+            <dd class="store-name">{{ packageItem.courierUserName }}</dd>
+          </div>
+        }
+
+        @if (packageItem.dispatchedAtUtc; as dispatchedAt) {
+          <div>
+            <dt>Feladás ideje</dt>
+            <dd class="store-name">
+              {{ toUtcDate(dispatchedAt) | date: 'yyyy.MM.dd. HH:mm' }}
+            </dd>
+          </div>
+        }
+      </dl>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Optional comment -->
+
+  <div class="field">
+    <label for="package-receive-comment">
+      Megjegyzés
+    </label>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <textarea matInput
+        id="package-receive-comment"
+        rows="4"
+        maxlength="2000"
+        placeholder="Opcionális megjegyzés az érkeztetéshez..."
+        [ngModel]="comment()"
+        [disabled]="busy()"
+        (ngModelChange)="updateComment($event)"></textarea>
+
+      <mat-hint>A megjegyzés opcionális.</mat-hint>
+
+      <mat-hint align="end">{{ commentLength() }} / 2000</mat-hint>
+    </mat-form-field>
+  </div>
+
+  @if (submitting()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Csomag érkeztetése folyamatban"/>
+  }
+
+  <!-- Actions -->
+
+  <div class="form-actions">
+    <button mat-button type="button"
+      [disabled]="busy()"
+      (click)="close()">
+      Mégse
+    </button>
+
+    <button mat-flat-button
+      type="button"
+      class="receive-button"
+      [disabled]="!canSubmit()"
+      (click)="submit()">
+      <mat-icon>move_to_inbox</mat-icon>
+
+      @if (submitting()) {
+        Érkeztetés folyamatban...
+      } @else {
+        Csomag érkeztetése
+      }
+    </button>
+  </div>
+</section>
+
+<!-- Confirmation dialog -->
+
+<ng-template #receiveConfirmationDialog let-data>
+  <h2 mat-dialog-title id="receive-package-confirmation-title">
+    Csomag érkeztetésének megerősítése
+  </h2>
+
+  <mat-dialog-content>
+    <p>Biztosan érkezteted a <strong>{{ data.packageNumber }}</strong> csomagot?</p>
+
+    <dl class="confirmation-summary">
+      <div>
+        <dt>Érkeztetés helye</dt>
+        <dd>{{ data.destination }}</dd>
+      </div>
+
+      <div>
+        <dt>Eszközök száma</dt>
+        <dd>{{ data.assetCount }}</dd>
+      </div>
+
+      @if (data.comment) {
+        <div>
+          <dt>Megjegyzés</dt>
+          <dd class="comment-text">{{ data.comment }}</dd>
+        </div>
+      }
+    </dl>
+
+    <p class="confirmation-notice">
+      A csomag státusza „Megérkezett” lesz. Az érkeztetés az összes benne található eszközre érvényes.
+    </p>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" cdkFocusInitial>
+      Mégse
+    </button>
+
+    <button mat-flat-button type="button" class="receive-button" [mat-dialog-close]="true">
+      Érkeztetés megerősítése
+    </button>
+  </mat-dialog-actions>
+</ng-template>

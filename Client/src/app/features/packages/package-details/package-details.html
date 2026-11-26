@@ -1,0 +1,323 @@
+@let details = packageDetails();
+
+<section class="package-details">
+  <!-- Package header -->
+
+  <header class="package-header">
+    <div>
+      <p class="eyebrow">Csomagazonosító</p>
+      <h2>{{ details.packageNumber }}</h2>
+    </div>
+
+    <span class="package-status" [attr.data-status]="details.status">
+      {{ getStatusLabel(details.status) }}
+    </span>
+  </header>
+
+  <!-- Summary -->
+
+  <div class="summary-grid">
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <div class="summary-label">
+          <mat-icon>outbox</mat-icon>
+          <span>Feladó</span>
+        </div>
+
+        <p class="summary-value">{{ details.sourceStoreName }}</p>
+        <p class="secondary-text">{{ details.sourceStoreNumber }}</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <div class="summary-label">
+          <mat-icon>move_to_inbox</mat-icon>
+          <span>Címzett</span>
+        </div>
+
+        <p class="summary-value">{{ details.destinationStoreName }}</p>
+        <p class="secondary-text">{{ details.destinationStoreNumber }}</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <div class="summary-label">
+          <mat-icon>local_shipping</mat-icon>
+          <span>Futár</span>
+        </div>
+
+        <p class="summary-value">{{ details.courierUserName || 'Nincs futár hozzárendelve' }}</p>
+
+        @if (canEditCourier()) {
+          <button mat-stroked-button type="button" class="courier-button"
+            [disabled]="assetOperationInProgress()"
+            (click)="openCourierEditor()">
+            <mat-icon>edit</mat-icon>
+
+            {{ details.courierUserId ? 'Futár módosítása' : 'Futár hozzárendelése' }}
+          </button>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <div class="summary-label">
+          <mat-icon>inventory_2</mat-icon>
+          <span>Eszközök száma</span>
+        </div>
+
+        <p class="asset-count">{{ details.items.length }}</p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Package information -->
+
+  <mat-card appearance="outlined">
+    <div class="section-header">
+      <div class="section-title">
+        <mat-icon>info</mat-icon>
+        <h3>Csomag adatai</h3>
+      </div>
+    </div>
+
+    <mat-card-content>
+      <dl class="information-grid">
+        <div>
+          <dt>Létrehozás ideje</dt>
+          <dd>{{ toUtcDate(details.createdAtUtc) | date: 'yyyy.MM.dd. HH:mm'}}</dd>
+        </div>
+
+        @if (details.dispatchedAtUtc; as dispatchedAt) {
+          <div>
+            <dt>Feladás ideje</dt>
+            <dd>{{ toUtcDate(dispatchedAt) | date: 'yyyy.MM.dd. HH:mm' }}</dd>
+          </div>
+        }
+
+        @if (details.receivedAtUtc; as receivedAt) {
+          <div>
+            <dt>Érkeztetés ideje</dt>
+            <dd>{{ toUtcDate(receivedAt) | date: 'yyyy.MM.dd. HH:mm' }}</dd>
+          </div>
+        }
+
+        @if (details.cancelledAtUtc; as cancelledAt) {
+          <div>
+            <dt>Megszakítás ideje</dt>
+            <dd>{{ toUtcDate(cancelledAt) | date: 'yyyy.MM.dd. HH:mm' }}</dd>
+          </div>
+        }
+      </dl>
+
+      @if (details.comment) {
+        <div class="comment-section">
+          <h4>Megjegyzés</h4>
+          <p class="comment-text">{{ details.comment }}</p>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Assets -->
+
+  <mat-card appearance="outlined" class="assets-card">
+    <div class="section-header">
+      <div class="section-title">
+        <mat-icon>inventory_2</mat-icon>
+        <h3>Eszközök a csomagban</h3>
+
+        <span class="count-badge">{{ sortedItems().length }}</span>
+      </div>
+
+      @if (canEditAssets()) {
+        <button mat-flat-button type="button"
+          [disabled]="assetOperationInProgress()"
+          (click)="openAssetsEditor()">
+          <mat-icon>add</mat-icon>
+          Eszköz hozzáadása
+        </button>
+      }
+    </div>
+
+    @if (assetOperationInProgress()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Eszköz eltávolítása folyamatban"/>
+    }
+
+    @if (sortedItems().length === 0) {
+      <div class="empty-state">
+        <mat-icon>inventory_2</mat-icon>
+        <p>A csomag nem tartalmaz eszközt.</p>
+      </div>
+    } @else {
+      <div class="table-container" role="region" aria-label="A csomag eszközei" tabindex="0"
+        [attr.aria-busy]="assetOperationInProgress()">
+        <table mat-table [dataSource]="sortedItems()" class="assets-table">
+          <ng-container matColumnDef="asset">
+            <th mat-header-cell *matHeaderCellDef>Eszköz</th>
+            <td mat-cell *matCellDef="let item">
+              <p class="asset-name"> {{ item.assetName }}</p>
+              <p class="secondary-text serial-number">Gyári szám: {{ item.serialNumber || 'Nincs megadva' }}</p>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="addedAt">
+            <th mat-header-cell *matHeaderCellDef>Hozzáadás ideje</th>
+            <td mat-cell *matCellDef="let item">{{ toUtcDate(item.addedAtUtc) | date: 'yyyy.MM.dd. HH:mm' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="actions-cell">Műveletek</th>
+            <td mat-cell *matCellDef="let item" class="actions-cell">
+              <button mat-stroked-button type="button" class="remove-button"
+                [disabled]="assetOperationInProgress()"
+                [attr.aria-label]="'Eszköz eltávolítása: ' + item.assetName"
+                (click)="requestRemoveAsset(item.assetId)">
+                <mat-icon>delete_outline</mat-icon>
+                Eltávolítás
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="assetColumns()"></tr>
+          <tr mat-row *matRowDef="let item; columns: assetColumns()"></tr>
+        </table>
+      </div>
+    }
+  </mat-card>
+
+  <!-- Event history -->
+
+  <mat-card appearance="outlined">
+    <div class="section-header">
+      <div class="section-title">
+        <mat-icon>history</mat-icon>
+        <h3>Eseménytörténet</h3>
+
+        <span class="count-badge">{{ sortedEvents().length }}</span>
+      </div>
+    </div>
+
+    @if (sortedEvents().length === 0) {
+      <div class="empty-state">
+        <mat-icon>history</mat-icon>
+        <p>A csomaghoz nem tartozik esemény.</p>
+      </div>
+    } @else {
+      <ol class="event-list">
+        @for (event of sortedEvents(); track event.id) {
+          <li class="event-item">
+            <div class="event-icon" [attr.data-event]="event.type">
+              <mat-icon>{{ getEventIcon(event) }}</mat-icon>
+            </div>
+
+            <div class="event-content">
+              <div class="event-heading">
+                <div>
+                  <h4>{{ getEventTypeLabel(event) }}</h4>
+                  <p class="secondary-text">{{ event.performedByUserName }}</p>
+                </div>
+
+                <time class="event-time" [attr.datetime]="toUtcDate(event.occurredAtUtc)">
+                  {{ toUtcDate(event.occurredAtUtc) | date: 'yyyy.MM.dd. HH:mm' }}
+                </time>
+              </div>
+
+              @if (getEventDescription(event); as description) {
+                <p class="event-description">{{ description }}</p>
+              }
+
+              @if (event.previousStatus && event.previousStatus !== event.newStatus) {
+                <div class="status-transition">
+                  <span class="package-status" [attr.data-status]="event.previousStatus">
+                    {{ getStatusLabel(event.previousStatus) }}
+                  </span>
+
+                  <mat-icon aria-hidden="true">
+                    arrow_forward
+                  </mat-icon>
+
+                  <span class="package-status" [attr.data-status]="event.newStatus">
+                    {{ getStatusLabel(event.newStatus) }}
+                  </span>
+                </div>
+              }
+
+              @if (event.comment) {
+                <p class="event-comment comment-text">{{ event.comment }}</p>
+              }
+            </div>
+          </li>
+        }
+      </ol>
+    }
+  </mat-card>
+</section>
+
+<!-- Courier editor dialog -->
+
+<ng-template #courierDialog>
+  <h2 mat-dialog-title id="package-courier-dialog-title">
+    {{ packageDetails().courierUserId ? 'Futár módosítása' : 'Futár hozzárendelése' }}
+  </h2>
+
+  <mat-dialog-content>
+    <app-package-assign-courier
+      [packageId]="packageDetails().id"
+      [currentCourierUserId]="packageDetails().courierUserId"
+      (courierAssigned)="onCourierAssigned($event)"/>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="closeCourierEditor()">
+      Bezárás
+    </button>
+  </mat-dialog-actions>
+</ng-template>
+
+<!-- Asset editor dialog -->
+
+<ng-template #assetsDialog>
+  <h2 mat-dialog-title id="package-assets-dialog-title">Eszköz hozzáadása</h2>
+
+  <mat-dialog-content>
+    <app-package-assets-editor
+      [packageDetails]="packageDetails()"
+      (assetsChanged)="onAssetsChanged()"/>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="closeAssetsEditor()">
+      Bezárás
+    </button>
+  </mat-dialog-actions>
+</ng-template>
+
+<!-- Removal confirmation dialog -->
+
+<ng-template #removeAssetDialog let-data>
+  <h2 mat-dialog-title id="package-remove-asset-dialog-title">Eszköz eltávolítása</h2>
+
+  <mat-dialog-content>
+    <p>Biztosan eltávolítod ezt az eszközt a csomagból?</p>
+
+    <div class="removal-summary">
+      <strong>{{ data.assetName }}</strong>
+
+      <span class="secondary-text">Gyári szám: {{ data.serialNumber || 'Nincs megadva' }}</span>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" cdkFocusInitial>
+      Mégse
+    </button>
+
+    <button mat-flat-button type="button" class="confirm-remove-button" [mat-dialog-close]="true">
+      Eltávolítás
+    </button>
+  </mat-dialog-actions>
+</ng-template>

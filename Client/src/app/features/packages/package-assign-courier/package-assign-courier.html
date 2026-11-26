@@ -1,0 +1,103 @@
+<section
+  class="courier-editor"
+  [attr.aria-busy]="busy()"
+>
+  @if (isLoadingUsers()) {
+    <div class="empty-state" role="status">
+      <mat-spinner diameter="36" />
+      <p>Felhasználók betöltése...</p>
+    </div>
+
+  } @else if (loadFailed()) {
+    <div class="empty-state">
+      <button mat-stroked-button type="button" (click)="retryLoadingUsers()">
+        <mat-icon>refresh</mat-icon>
+        Felhasználók újratöltése
+      </button>
+    </div>
+
+  } @else {
+    <div class="field">
+      <label id="assign-courier-label">Futár *</label>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-select aria-labelledby="assign-courier-label" placeholder="Válassz futárt"
+          [value]="selectedCourierUserId()"
+          [disabled]="busy()"
+          (selectionChange)="updateSelectedCourierUserId($event.value)"
+          required>
+          @for (user of applicationUsers(); track user.id) {
+            <mat-option [value]="user.id">{{ user.displayName }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      @if (applicationUsers().length === 0) {
+        <p class="secondary-text">Nincs kiválasztható alkalmazásfelhasználó.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="assign-courier-comment">Megjegyzés</label>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <textarea matInput
+          id="assign-courier-comment"
+          rows="3"
+          maxlength="2000"
+          placeholder="Opcionális megjegyzés..."
+          [ngModel]="comment()"
+          [disabled]="busy()"
+          (ngModelChange)="updateComment($event)"></textarea>
+
+        <mat-hint align="end">{{ commentLength() }} / 2000</mat-hint>
+      </mat-form-field>
+    </div>
+
+    @if (isSaving()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Futár mentése folyamatban"/>
+    }
+
+    <div class="form-actions">
+      <button mat-flat-button
+        type="button"
+        [disabled]="!canSave()"
+        (click)="assignCourier()">
+        <mat-icon>local_shipping</mat-icon>
+
+        @if (isSaving()) {
+          Mentés...
+        } @else if (currentCourierUserId) {
+          Futár módosítása
+        } @else {
+          Futár hozzárendelése
+        }
+      </button>
+    </div>
+  }
+</section>
+
+<!-- Confirmation dialog -->
+
+<ng-template #confirmationDialog let-data>
+  <h2 mat-dialog-title id="courier-confirmation-title">
+    {{data.isModification ? 'Futár módosításának megerősítése' : 'Futár hozzárendelésének megerősítése'}}
+  </h2>
+
+  <mat-dialog-content>
+    <p>Biztosan az alábbi felhasználót állítod be a csomag futárának?</p>
+
+    <div class="confirmation-summary">
+      <mat-icon aria-hidden="true">local_shipping</mat-icon>
+      <strong>{{ data.courierName }}</strong>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" cdkFocusInitial>
+      Mégse
+    </button>
+
+    <button mat-flat-button type="button" [mat-dialog-close]="true">Megerősítés</button>
+  </mat-dialog-actions>
+</ng-template>

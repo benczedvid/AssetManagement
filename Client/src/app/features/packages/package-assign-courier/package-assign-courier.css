@@ -1,0 +1,107 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.courier-editor {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+/* Form fields */
+
+.field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.field > label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field mat-form-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.secondary-text {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Loading and retry */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+
+  min-height: 160px;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* Actions */
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Confirmation */
+
+.confirmation-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+
+  background-color: #eff6ff;
+  color: #002b51;
+}
+
+.confirmation-summary mat-icon {
+  flex-shrink: 0;
+  color: #006ab2;
+}
+
+.confirmation-summary strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .form-actions > button {
+    width: 100%;
+  }
+}

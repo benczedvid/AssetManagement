@@ -1,0 +1,148 @@
+@let packageItem = packageDetails();
+
+<section class="package-dispatch" [attr.aria-busy]="busy()">
+  <!-- Package information -->
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <div class="package-heading">
+        <strong class="package-number">{{ packageItem.packageNumber }}</strong>
+
+        <span class="package-status" [attr.data-status]="packageItem.status">
+          {{ getStatusLabel(packageItem.status) }}
+        </span>
+      </div>
+
+      <dl class="summary-grid">
+        <div>
+          <dt>Feladó</dt>
+          <dd class="store-name">{{ packageItem.sourceStoreName }}</dd>
+          <dd class="secondary-text">{{ packageItem.sourceStoreNumber }}</dd>
+        </div>
+
+        <div>
+          <dt>Címzett</dt>
+          <dd class="store-name">{{ packageItem.destinationStoreName }}</dd>
+          <dd class="secondary-text">{{ packageItem.destinationStoreNumber }}</dd>
+        </div>
+
+        <div>
+          <dt>Eszközök száma</dt>
+          <dd class="asset-count">{{ packageItem.items.length }}</dd>
+        </div>
+
+        <div>
+          <dt>Futár</dt>
+          <dd class="store-name">{{ packageItem.courierUserName || 'Nincs futár hozzárendelve' }}</dd>
+        </div>
+      </dl>
+
+      @if (!packageItem.courierUserId) {
+        <p class="courier-hint">A feladáshoz először rendelj futárt a csomaghoz a részletezőben.</p>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Optional comment -->
+
+  <div class="field">
+    <label for="package-dispatch-comment">Megjegyzés</label>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <textarea matInput
+        id="package-dispatch-comment"
+        rows="4"
+        maxlength="2000"
+        placeholder="Opcionális megjegyzés a feladáshoz..."
+        [ngModel]="comment()"
+        [disabled]="busy()"
+        (ngModelChange)="updateComment($event)"></textarea>
+
+      <mat-hint>A megjegyzés opcionális.</mat-hint>
+
+      <mat-hint align="end">{{ commentLength() }} / 2000</mat-hint>
+    </mat-form-field>
+  </div>
+
+  @if (submitting()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Csomag feladása folyamatban"/>
+  }
+
+  <!-- Actions -->
+
+  <div class="form-actions">
+    <button mat-button type="button"
+      [disabled]="busy()"
+      (click)="cancel()">
+      Mégse
+    </button>
+
+    <button mat-flat-button
+      type="button"
+      [disabled]="!canSubmit()"
+      (click)="submit()">
+      <mat-icon>outbound</mat-icon>
+
+      @if (submitting()) {
+        Feladás folyamatban...
+      } @else {
+        Csomag feladása
+      }
+    </button>
+  </div>
+</section>
+
+<!-- Confirmation dialog -->
+
+<ng-template #dispatchConfirmationDialog let-data>
+  <h2 mat-dialog-title id="dispatch-package-confirmation-title">
+    Csomag feladásának megerősítése
+  </h2>
+
+  <mat-dialog-content>
+    <p>Biztosan feladod a <strong>{{ data.packageNumber }}</strong> csomagot?</p>
+
+    <dl class="confirmation-summary">
+      <div>
+        <dt>Feladó</dt>
+        <dd>{{ data.source }}</dd>
+      </div>
+
+      <div>
+        <dt>Címzett</dt>
+        <dd>{{ data.destination }}</dd>
+      </div>
+
+      <div>
+        <dt>Futár</dt>
+        <dd>{{ data.courierName }}</dd>
+      </div>
+
+      <div>
+        <dt>Eszközök száma</dt>
+        <dd>{{ data.assetCount }}</dd>
+      </div>
+
+      @if (data.comment) {
+        <div class="confirmation-comment">
+          <dt>Megjegyzés</dt>
+          <dd>{{ data.comment }}</dd>
+        </div>
+      }
+    </dl>
+
+    <p class="confirmation-notice">
+      Feladás után a csomag már nem szakítható meg. A csomag a céltelephelyen érkeztethető.
+    </p>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" cdkFocusInitial>
+      Mégse
+    </button>
+
+    <button mat-flat-button type="button" [mat-dialog-close]="true">
+      Feladás megerősítése
+    </button>
+  </mat-dialog-actions>
+</ng-template>

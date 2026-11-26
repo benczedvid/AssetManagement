@@ -1,0 +1,332 @@
+<div class="packages-page">
+  <header class="page-header">
+    <div>
+      <p class="page-eyebrow">Ügyintézés</p>
+      <h1>Csomagküldés / Érkeztetés</h1>
+      <p>Eszközcsomagok létrehozása, feladása, követése és érkeztetése.</p>
+    </div>
+  </header>
+
+  <mat-card appearance="outlined" class="packages-card">
+    <div class="list-header">
+      <div>
+        <h2>Csomagok</h2>
+        <p class="secondary-text">{{ filteredItems().length }} / {{ items().length }} csomag</p>
+      </div>
+
+      <div class="header-actions">
+        <button mat-stroked-button type="button"
+          [disabled]="listLoading()"
+          (click)="loadList()">
+          <mat-icon>refresh</mat-icon>
+          Frissítés
+        </button>
+
+        @if (canCreatePackage()) {
+          <button mat-flat-button type="button" (click)="openCreateForm()">
+            <mat-icon>add</mat-icon>
+            Új csomag
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="filters">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="package-search-field">
+        <input matInput
+          type="text"
+          aria-label="Csomag keresése"
+          placeholder="Csomagszám, telephely vagy futár keresése..."
+          autocomplete="off"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="updateSearchTerm($event)"/>
+
+        @if (searchTerm()) {
+          <button mat-icon-button matSuffix type="button" aria-label="Keresés törlése"
+            (click)="updateSearchTerm('')">
+            <mat-icon>close</mat-icon>
+          </button>
+        } @else {
+          <mat-icon matSuffix>search</mat-icon>
+        }
+      </mat-form-field>
+
+    <mat-chip-listbox aria-label="Státusz szerinti szűrés"
+      [multiple]="true"
+      [value]="selectedStatuses()"
+      (change)="selectStatuses($event.value)">
+      <mat-chip-option value="Created">Előkészített ({{ filterCounts().created }})</mat-chip-option>
+      <mat-chip-option value="InTransit">Úton ({{ filterCounts().inTransit }})</mat-chip-option>
+      <mat-chip-option value="Received">Megérkezett ({{ filterCounts().received }})</mat-chip-option>
+      <mat-chip-option value="Cancelled">Megszakítva ({{ filterCounts().cancelled }})</mat-chip-option>
+    </mat-chip-listbox>
+
+    @if (selectedStatuses().length > 0) {
+      <div>
+        <button mat-button type="button" (click)="clearStatusFilters()">
+          <mat-icon>filter_alt_off</mat-icon>
+          Státuszszűrés törlése
+        </button>
+      </div>
+    }
+    </div>
+
+    <mat-divider />
+
+    @if (listLoading()) {
+      <div class="empty-state" role="status">
+        <mat-spinner diameter="36" />
+        <p>Loading packages...</p>
+      </div>
+
+    } @else if (listError()) {
+      <div class="empty-state">
+        <mat-icon class="empty-icon">cloud_off</mat-icon>
+        <h3>Unable to load packages</h3>
+
+        <button mat-stroked-button type="button" (click)="loadList()">
+          <mat-icon>refresh</mat-icon>
+          Újrapróbálás
+        </button>
+      </div>
+
+    } @else if (items().length === 0) {
+      <div class="empty-state">
+        <mat-icon class="empty-icon">inventory_2</mat-icon>
+        <h3>Nincsenek csomagok</h3>
+        <p>No packages are available.</p>
+      </div>
+
+    } @else if (filteredItems().length === 0) {
+      <div class="empty-state">
+        <mat-icon class="empty-icon">search_off</mat-icon>
+        <h3>Nincs találat</h3>
+        <p>No packages match the selected filters.</p>
+
+        <button mat-stroked-button type="button" (click)="clearFilters()">
+          Szűrők törlése
+        </button>
+      </div>
+
+    } @else {
+      <div class="table-container" role="region" aria-label="Csomaglista" tabindex="0">
+        <table mat-table [dataSource]="filteredItems()" class="packages-table">
+          <ng-container matColumnDef="packageNumber">
+            <th mat-header-cell *matHeaderCellDef>Csomagazonosító</th>
+
+            <td mat-cell *matCellDef="let item">
+              <button mat-button
+                type="button"
+                class="package-link"
+                aria-haspopup="dialog"
+                [attr.aria-label]="'Csomag megnyitása: ' + item.packageNumber"
+                (click)="$event.stopPropagation(); openPackageDialog(item.id)">
+                {{ item.packageNumber }}
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="source">
+            <th mat-header-cell *matHeaderCellDef>Feladó</th>
+
+            <td mat-cell *matCellDef="let item">
+              <div class="store-name">{{ item.sourceStoreName }}</div>
+              <div class="secondary-text">{{ item.sourceStoreNumber }}</div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="destination">
+            <th mat-header-cell *matHeaderCellDef>Címzett</th>
+
+            <td mat-cell *matCellDef="let item">
+              <div class="store-name">
+                {{ item.destinationStoreName }}
+              </div>
+              <div class="secondary-text">
+                {{ item.destinationStoreNumber }}
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="assetCount">
+            <th mat-header-cell *matHeaderCellDef>Eszközök</th>
+            <td mat-cell *matCellDef="let item">{{ item.assetCount }} db</td>
+          </ng-container>
+
+          <ng-container matColumnDef="courier">
+            <th mat-header-cell *matHeaderCellDef>Futár</th>
+
+            <td mat-cell *matCellDef="let item">
+              {{ item.courierUserName || 'Nincs hozzárendelve' }}
+            </td>
+          </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Státusz</th>
+          <td mat-cell *matCellDef="let item">
+            <span class="package-status"
+              [attr.data-status]="item.status">
+              {{ getStatusLabel(item.status) }}
+            </span>
+          </td>
+        </ng-container>
+
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>Létrehozva</th>
+            <td mat-cell *matCellDef="let item">
+              {{ item.createdAtUtc +'Z' | date: 'yyyy.MM.dd. HH:mm' }}
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+
+          <tr mat-row *matRowDef="let item; columns: displayedColumns" class="package-row" (click)="openPackageDialog(item.id)"></tr>
+        </table>
+      </div>
+    }
+  </mat-card>
+</div>
+
+<!-- Package details dialog -->
+<ng-template #packageDetailsDialog>
+  <div class="details-dialog-header">
+    <h2 mat-dialog-title id="package-details-title">Csomag részletei</h2>
+
+    <button mat-icon-button type="button" aria-label="Részletező bezárása" (click)="closePackageDialog()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    @if (detailsLoading()) {
+      <div class="empty-state" role="status">
+        <mat-spinner diameter="36" />
+        <p>Loading package details...</p>
+      </div>
+
+    } @else if (detailsError()) {
+      <div class="empty-state">
+        <mat-icon class="empty-icon">error_outline</mat-icon>
+        <h3>Unable to load package details</h3>
+
+        <button mat-stroked-button type="button" (click)="retryDetails()">
+          Újrapróbálás
+        </button>
+      </div>
+
+    } @else if (selectedPackage(); as packageDetails) {
+      @if (activeAction() === 'dispatch') {
+        <app-package-dispatch
+          [packageDetails]="packageDetails"
+          (completed)="handlePackageDispatched($event)"
+          (cancelled)="closeAction()"
+          (failed)="handleActionError($event)"
+        />
+
+      } @else if (activeAction() === 'receive') {
+        <app-package-receive
+          [packageDetails]="packageDetails"
+          (completed)="handlePackageReceived($event)"
+          (cancelled)="closeAction()"
+          (failed)="handleActionError($event)"
+        />
+
+      } @else if (activeAction() === 'cancel') {
+        <app-package-cancel
+          [packageDetails]="packageDetails"
+          (completed)="handlePackageCancelled($event)"
+          (cancelled)="closeAction()"
+          (failed)="handleActionError($event)"
+        />
+
+      } @else {
+        @if (canDispatchPackage() || canReceivePackage() || canCancelPackage()) {
+          <div class="package-actions">
+            @if (canDispatchPackage()) {
+              <button mat-flat-button type="button" (click)="openDispatch()">
+                <mat-icon>outbound</mat-icon>
+                Feladás
+              </button>
+            }
+
+            @if (canReceivePackage()) {
+              <button mat-flat-button type="button" (click)="openReceive()">
+                <mat-icon>move_to_inbox</mat-icon>
+                Érkeztetés
+              </button>
+            }
+
+            @if (canCancelPackage()) {
+              <button mat-stroked-button type="button" class="cancel-action" (click)="openCancel()">
+                <mat-icon>cancel</mat-icon>
+                Megszakítás
+              </button>
+            }
+          </div>
+
+          <mat-divider />
+        }
+
+        <div class="package-details-content">
+          <app-package-details
+            [packageDetails]="packageDetails"
+            [canAssignCourier]="canAssignCourier()"
+            [canManageAssets]="canManagePackageAssets()"
+            (courierAssigned)="handleCourierAssigned($event)"
+            (assetsChanged)="handlePackageAssetsChanged()"/>
+        </div>
+      }
+    }
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="closePackageDialog()">
+      Bezárás
+    </button>
+  </mat-dialog-actions>
+</ng-template>
+
+<!-- Shared confirmation dialog -->
+<ng-template #confirmationDialog let-data>
+  <h2 mat-dialog-title>{{ data.title }}</h2>
+
+  <mat-dialog-content>
+    <p>{{ data.message }}</p>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button
+      mat-button
+      type="button"
+      [mat-dialog-close]="false"
+      cdkFocusInitial
+    >
+      Mégse
+    </button>
+
+    <button
+      mat-flat-button
+      type="button"
+      [mat-dialog-close]="true"
+    >
+      {{ data.confirmLabel }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>
+<!-- Create package dialog -->
+<ng-template #packageCreateDialog>
+  <div class="details-dialog-header">
+    <h2 mat-dialog-title>Új csomag létrehozása</h2>
+
+    <button mat-icon-button type="button" aria-label="Bezárás" (click)="closeCreateForm()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    <app-package-create
+      (packageCreated)="handlePackageCreated($event)"
+      (cancelled)="closeCreateForm()"
+    />
+  </mat-dialog-content>
+</ng-template>

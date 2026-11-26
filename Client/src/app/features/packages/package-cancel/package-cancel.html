@@ -1,0 +1,118 @@
+@let packageItem = packageDetails();
+
+<section class="package-cancel" [attr.aria-busy]="busy()">
+
+  <!-- Package information -->
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <div class="package-heading">
+        <strong class="package-number">{{ packageItem.packageNumber }}</strong>
+        <span class="package-status" [attr.data-status]="packageItem.status">
+          {{ getStatusLabel(packageItem.status) }}
+        </span>
+      </div>
+
+      <dl class="summary-grid">
+        <div>
+          <dt>Feladó</dt>
+
+          <dd class="store-name">{{ packageItem.sourceStoreName }}</dd>
+          <dd class="secondary-text">{{ packageItem.sourceStoreNumber }}</dd>
+        </div>
+
+        <div>
+          <dt>Címzett</dt>
+          <dd class="store-name">{{ packageItem.destinationStoreName }}</dd>
+          <dd class="secondary-text">{{ packageItem.destinationStoreNumber }}</dd>
+        </div>
+
+        <div>
+          <dt>Eszközök száma</dt>
+          <dd class="asset-count">{{ packageItem.items.length }}</dd>
+        </div>
+
+        @if (packageItem.courierUserName) {
+          <div>
+            <dt>Futár</dt>
+            <dd class="store-name">{{ packageItem.courierUserName }}</dd>
+          </div>
+        }
+      </dl>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Required reason -->
+
+  <div class="field">
+    <label for="package-cancel-comment">Megszakítás indoklása *</label>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <textarea matInput
+        id="package-cancel-comment"
+        rows="5"
+        maxlength="2000"
+        required
+        placeholder="Írd le a csomag megszakításának okát..."
+        [ngModel]="comment()"
+        [disabled]="busy()"
+        (ngModelChange)="updateComment($event)"></textarea>
+
+      <mat-hint>Az indoklás kötelező.</mat-hint>
+      <mat-hint align="end">{{ commentLength() }} / 2000</mat-hint>
+    </mat-form-field>
+  </div>
+
+  @if (submitting()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Csomag megszakítása folyamatban"/>
+  }
+
+  <!-- Actions -->
+
+  <div class="form-actions">
+    <button mat-button type="button"
+      [disabled]="busy()"
+      (click)="close()">
+      Mégse
+    </button>
+
+    <button mat-flat-button type="button" class="danger-button"
+      [disabled]="!canSubmit()"
+      (click)="submit()">
+      <mat-icon>cancel</mat-icon>
+
+      @if (submitting()) {
+        Megszakítás folyamatban...
+      } @else {
+        Csomag megszakítása
+      }
+    </button>
+  </div>
+</section>
+
+<!-- Confirmation dialog -->
+
+<ng-template #cancelConfirmationDialog let-data>
+  <h2 mat-dialog-title id="cancel-package-confirmation-title">
+    Csomag megszakításának megerősítése
+  </h2>
+
+  <mat-dialog-content>
+    <p>Biztosan megszakítod a <strong>{{ data.packageNumber }}</strong> csomagot?</p>
+    <p>A megszakított csomag később nem adható fel.</p>
+
+    <div class="confirmation-summary">
+      <h4>Megszakítás indoklása</h4>
+      <p>{{ data.comment }}</p>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" cdkFocusInitial>
+      Mégse
+    </button>
+
+    <button mat-flat-button type="button" class="danger-button" [mat-dialog-close]="true">
+      Megszakítás megerősítése
+    </button>
+  </mat-dialog-actions>
+</ng-template>
